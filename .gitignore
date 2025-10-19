@@ -77,5 +77,17 @@ DerivedDataCache/*
 # Packaged files
 Package/*
 
-# Specific stuff
+# Rider plugin
 **/RiderLink
+
+# Ninja Bear Studio libraries
+**/NinjaCombat
+**/NinjaCommonUI
+**/NinjaFactions
+**/NinjaGAS
+**/NinjaInput
+**/NinjaInteraction
+**/NinjaInventory
+**/NinjaPerception
+**/NinjaProfile
+**/NinjaTokens
