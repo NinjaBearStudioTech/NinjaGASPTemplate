@@ -1,65 +1,28 @@
-# Game Animation Sample with Overlay Layering | Unreal Engine 5
+# Ninja GASP
 
-## Introduction
+This project integrates [Polygon Hive][1]'s GASP-ALS project - a GASP tempalte with ALS Overlay Layering System - with the suite of plugins from [Ninja Bear Studio][2].
+It's designed as a self-contained template, but internal plugins are isolataed and should be transferrable to any project.
 
-This project integrates the ALS Overlay Layering System into the new Unreal Engine Motion Matching Game Animation Sample.
-Advanced Locomotion System (ALS) provides a nice Overlay System that allows us to alter the entire locomotion animation just by applying simple overlay poses. 
+## Main Features
+- All features from the original GASP-ASL project, includin a deep overlaying system, ragdolls and animation stances.
+- Integrated with Ninja Bear Studio plugins, including additional integration code, as needed.
+- Features are fully compartimentalized into plugis so you can easily transfer them to your own project.
 
-## Features
+## Pre-requisites
+First and foremost, a good understanding of **GASP** and the **ALS layering system**, is important so you can extend the system. You'll find multiple videos on this topic
+in [Polygon Hive's YouTube channel][1]. This sample also includes all plugins from Ninja Bear Studio, so you'll only be able to execute the project if you have all necessary
+licenses, which are available on [Fab][3].
 
-- Game Animation Sample
-- Overlay layering system built with separate Anim Graphs and Linked Layers
-- All overlays from ALS
-- Basic weapon attach system from ALS
-- Basic overlay switcher widget from ALS
-- Removed Echo and Twinblast characters and Manny/Quinn 4k textures to lower project size
+The core NinjaGASP plugin includes **C++ sources** so your system must be configured to compile the project. You don't need to do so from an IDE and you don't need to deal
+with C++ yourself, but you will have to configure your machine following [Unreal Engine's installation steps for C++][4].
 
-## Overview
+## Plugin Integration
+This project does not include commercial plugins and you can install them using one of the following options:
 
-An overview of the system is available on my YouTube channel [Polygon Hive](https://www.youtube.com/watch?v=RDWNfIqvWBk&list=PLs9e0eJQMI2aaulgKJzC8feN1UEwDkEnq)
+- **Epic Games Launcher**: You can install all Ninja Bear Studio plugins to your engine, using the Launcher.
+- **GitHub Sources**: You can clone plugins from GitHub into the project. These sources are ignored and won't be pushed to repository. This project includes scripts to initialize and update git dependencies.
 
-## Migrating Plugin
-
-To migrate the GASPALS plugin to your own Unreal Engine project, you can follow these steps:
-
-1. Copy the `Plugins/GASPALS` folder to your project's `Plugins` folder.
-2. Merge the `Plugins/GASPALS/Config` files with your project's `Config` files.
-3. Copy `DefaultEngine.ini` content at the end of your project's `DefaultEngine.ini`.
-4. Copy `Tags/GameplayTags_GASPALS.ini` to your project's `Config/Tags` folder.
-5. Launch the project, an error message will prompt you to add collision settings, click add at the end of the message.
-6. Enjoy :) 
-
-## Contributing
-
-Contributions are welcome! I hope that, with the help of the community, we can turn this into a next-gen fully featured locomotion system. 
-
-Please follow these steps to contribute:
-
-1. Clone the repository.
-2. Create a new branch (`git checkout -b feature/your-feature`).
-3. Make your changes.
-4. Commit your changes (`git commit -m 'Add some feature'`).
-5. Push to the branch (`git push origin feature/your-feature`).
-6. Open a pull request.
-
-Please ensure your code follows the project's coding and naming standards.
-
-## License
-
-[UE-Only Content - Licensed for Use Only with Unreal Engine-based Products](https://www.unrealengine.com/en-US/eula/content)
-
-## Contact
-
-For questions, suggestions, or feedback, please contact:
-
-- Anas EL FERACHI - [anas@polygonhive.com](mailto:anas@polygonhive.com)
-
-## Support My Work
-
-- [Buy Me A Coffee](https://buymeacoffee.com/PolygonHive)
-
----
-
-Thanks for checking out the project! I hope it helps you create amazing games.
-
-
+[1]: https://www.youtube.com/watch?v=RDWNfIqvWBk&list=PLs9e0eJQMI2aaulgKJzC8feN1UEwDkEnq
+[2]: https://tech.ninjabear.studio/
+[3]: https://www.fab.com/sellers/Ninja%20Bear%20Studio
+[4]: https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine
