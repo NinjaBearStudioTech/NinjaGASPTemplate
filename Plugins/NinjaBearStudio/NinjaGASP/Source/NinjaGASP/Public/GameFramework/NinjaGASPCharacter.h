@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/NinjaGASCharacter.h"
+#include "Interfaces/PreMovementComponentTickInterface.h"
 #include "NinjaGASPCharacter.generated.h"
 
 /**
@@ -13,7 +14,7 @@
  * provides an appropriate class to that end)
  */
 UCLASS(Abstract)
-class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter
+class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface
 {
 	
 	GENERATED_BODY()
@@ -21,5 +22,5 @@ class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter
 public:
 
 	ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	
+
 };
