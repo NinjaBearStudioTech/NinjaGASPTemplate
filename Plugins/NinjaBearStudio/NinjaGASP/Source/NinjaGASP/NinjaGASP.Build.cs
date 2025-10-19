@@ -1,53 +1,37 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
+// Ninja Bear Studio Inc., all rights reserved.
 using UnrealBuildTool;
 
 public class NinjaGASP : ModuleRules
 {
-	public NinjaGASP(ReadOnlyTargetRules Target) : base(Target)
+	public NinjaGASP(ReadOnlyTargetRules target) : base(target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
+		PublicDependencyModuleNames.AddRange(new []
+		{
+			// Unreal Engine Modules
+			"AIModule",
+			"Core", 
+			"InputCore", 
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			"ModularGameplay",
+			"NetCore",
+			"UMG",
 			
+			// Ninja Bear Studio Modules
+			"NinjaCombat",
+			"NinjaGAS",
+			"NinjaInput"
+		});
 		
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
-			
-		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
-				// ... add private dependencies that you statically link with here ...	
-			}
-			);
-		
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
+		PrivateDependencyModuleNames.AddRange(new []
+		{
+			"CoreUObject",
+			"Engine",
+			"Slate",
+			"SlateCore"
+		});	
 	}
 }
