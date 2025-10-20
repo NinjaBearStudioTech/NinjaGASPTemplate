@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "NinjaGASPCharacter.h"
-#include "Interfaces/TraversalMovementInputInterface.h"
+#include "Interfaces/PlayerCameraModeInterface.h"
 #include "NinjaGASPPlayerCharacter.generated.h"
 
 class UInputAction;
@@ -16,7 +16,7 @@ class UAbilitySystemComponent;
  * to the Player State, covering the expected deferred initialization.
  */
 UCLASS(Abstract)
-class NINJAGASP_API ANinjaGASPPlayerCharacter : public ANinjaGASPCharacter, public ITraversalMovementInputInterface
+class NINJAGASP_API ANinjaGASPPlayerCharacter : public ANinjaGASPCharacter, public IPlayerCameraModeInterface
 {
 	
 	GENERATED_BODY()

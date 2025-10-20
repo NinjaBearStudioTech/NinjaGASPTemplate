@@ -3,7 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/NinjaGASCharacter.h"
+#include "Interfaces/AdvancedCharacterMovementInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
+#include "Interfaces/TraversalMovementInputInterface.h"
 #include "NinjaGASPCharacter.generated.h"
 
 /**
@@ -14,7 +16,8 @@
  * provides an appropriate class to that end)
  */
 UCLASS(Abstract)
-class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface
+class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface,
+	public IAdvancedCharacterMovementInterface, public ITraversalMovementInputInterface
 {
 	
 	GENERATED_BODY()
