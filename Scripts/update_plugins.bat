@@ -7,7 +7,7 @@ REM Set the Plugins folder path relative to this script
 set "PLUGIN_DIR=%~dp0..\Plugins\NinjaBearStudio"
 
 REM List of plugin folder names (must match cloned repo folders)
-set PLUGINS=NinjaCombat NinjaCommonUI, NinjaGAS NinjaFactions NinjaInput NinjaInteraction NinjaInventory NinjaProfile NinjaPerception NinjaTokens
+set PLUGINS=NinjaCombat NinjaCommonUI NinjaGAS NinjaFactions NinjaInput NinjaInteraction NinjaInventory NinjaProfile NinjaPerception NinjaTokens
 
 REM Change to plugin directory
 cd /d "%PLUGIN_DIR%"

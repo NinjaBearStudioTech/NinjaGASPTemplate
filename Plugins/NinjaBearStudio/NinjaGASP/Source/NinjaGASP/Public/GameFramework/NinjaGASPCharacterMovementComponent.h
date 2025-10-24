@@ -16,6 +16,8 @@ class NINJAGASP_API UNinjaGASPCharacterMovementComponent : public UCharacterMove
 
 public:
 
+    UNinjaGASPCharacterMovementComponent();
+
 	// Begin CMC implementation
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	// End CMC implementation

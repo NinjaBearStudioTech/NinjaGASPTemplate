@@ -1,2 +1,12 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=364A7F81_002DE348_002D203C_002D8628_002D9E866CEAEC28_002Fd_003A1_002E1_002E1t_002Fd_003Ainclude_002Fd_003AWin64_002Fd_003AVS2015_002Fd_003Aopenssl_002Ff_003Auierr_002Eh/@EntryIndexedValue">ForceIncluded</s:String></wpf:ResourceDictionary>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=364A7F81_002DE348_002D203C_002D8628_002D9E866CEAEC28_002Fd_003A1_002E1_002E1t_002Fd_003Ainclude_002Fd_003AWin64_002Fd_003AVS2015_002Fd_003Aopenssl_002Ff_003Auierr_002Eh/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=ae7a382a_002D8dfb_002D459b_002D85fa_002Ddee1bcd3849b/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="Manager #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;UnrealTest::A2C585F9-F889-10D8-3E93-9F99E167E284::::NinjaBearStudio.Tokens.Manager&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=b742f339_002Df48f_002D430a_002D8c5b_002Dc84619640948/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Manager" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;UnrealTest::A2C585F9-F889-10D8-3E93-9F99E167E284::::NinjaBearStudio.Tokens.Manager&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

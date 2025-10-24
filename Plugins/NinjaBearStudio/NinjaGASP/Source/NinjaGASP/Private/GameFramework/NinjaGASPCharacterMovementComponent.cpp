@@ -3,6 +3,11 @@
 
 #include "Interfaces/PreMovementComponentTickInterface.h"
 
+UNinjaGASPCharacterMovementComponent::UNinjaGASPCharacterMovementComponent()
+{
+	NavMovementProperties.bUseAccelerationForPaths = true;
+}
+
 void UNinjaGASPCharacterMovementComponent::TickComponent(const float DeltaTime, const ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	ExecutePreTickExtensionOnOwningCharacter();
