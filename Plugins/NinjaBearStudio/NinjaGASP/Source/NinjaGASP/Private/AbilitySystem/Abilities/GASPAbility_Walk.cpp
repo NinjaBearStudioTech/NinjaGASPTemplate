@@ -1,5 +1,5 @@
 ﻿// Ninja Bear Studio Inc., all rights reserved.
-#include "AbilitySystem/GASPAbility_Walk.h"
+#include "AbilitySystem/Abilities/GASPAbility_Walk.h"
 
 #include "NinjaGASPTags.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"

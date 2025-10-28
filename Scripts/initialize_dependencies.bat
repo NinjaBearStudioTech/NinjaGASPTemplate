@@ -15,15 +15,11 @@ cd /d "%PLUGIN_DIR%"
 
 :: List of primary repositories
 set REPO1=https://github.com/NinjaBearStudioTech/NinjaCombat.git
-set REPO2=https://github.com/NinjaBearStudioTech/NinjaCommonUI.git
-set REPO3=https://github.com/NinjaBearStudioTech/NinjaGAS.git
-set REPO4=https://github.com/NinjaBearStudioTech/NinjaFactions.git
-set REPO5=https://github.com/NinjaBearStudioTech/NinjaInput.git
-set REPO6=https://github.com/NinjaBearStudioTech/NinjaInteraction.git
-set REPO7=https://github.com/NinjaBearStudioTech/NinjaInventory.git
-set REPO8=https://github.com/NinjaBearStudioTech/NinjaPerception.git
-set REPO9=https://github.com/NinjaBearStudioTech/NinjaProfile.git
-set REPO10=https://github.com/NinjaBearStudioTech/NinjaTokens.git
+set REPO2=https://github.com/NinjaBearStudioTech/NinjaGAS.git
+set REPO3=https://github.com/NinjaBearStudioTech/NinjaFactions.git
+set REPO4=https://github.com/NinjaBearStudioTech/NinjaInput.git
+set REPO5=https://github.com/NinjaBearStudioTech/NinjaInteraction.git
+set REPO6=https://github.com/NinjaBearStudioTech/NinjaInventory.git
 
 for %%R in (1 2 3 4 5 6 7 8 9 10) do (
     call set "REPO=!REPO%%R!"

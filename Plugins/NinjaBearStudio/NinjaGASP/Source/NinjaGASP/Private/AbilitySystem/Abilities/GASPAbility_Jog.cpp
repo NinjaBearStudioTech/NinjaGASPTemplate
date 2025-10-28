@@ -1,5 +1,5 @@
 ﻿// Ninja Bear Studio Inc., all rights reserved.
-#include "AbilitySystem/GASPAbility_Jog.h"
+#include "AbilitySystem/Abilities/GASPAbility_Jog.h"
 
 #include "AbilitySystemComponent.h"
 #include "NinjaGASPTags.h"
@@ -16,6 +16,7 @@ UGASPAbility_Jog::UGASPAbility_Jog()
 	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Sprint);
 	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Walk);
 
+	bActivateWalkOnEnd = true;
 	WalkAbilityActivationTags.AddTagFast(Tag_GASP_Ability_Walk);
 }
 
@@ -42,39 +43,33 @@ bool UGASPAbility_Jog::IsJogging() const
 	return true;
 }
 
-void UGASPAbility_Jog::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+bool UGASPAbility_Jog::ActivateLocomotionMode_Implementation()
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();
-	if (!IsJogging() && CommitAbility(Handle, ActorInfo, ActivationInfo))
+	if (!IsValid(MyAvatar) || !MyAvatar->Implements<UAdvancedCharacterMovementInterface>())
 	{
-		static constexpr bool bWantsToSprint = false;
-		static constexpr bool bWantsToWalk = false;
-		IAdvancedCharacterMovementInterface::Execute_SetSprintingIntent(MyAvatar, bWantsToSprint);
-		IAdvancedCharacterMovementInterface::Execute_SetWalkingIntent(MyAvatar, bWantsToWalk);
+		return false;
 	}
-	else
-	{
-		static constexpr bool bReplicateCancel = true;
-		CancelAbility(Handle, ActorInfo, ActivationInfo, bReplicateCancel);
-	}	
+	
+	static constexpr bool bWantsToSprint = false;
+	static constexpr bool bWantsToWalk = false;
+	IAdvancedCharacterMovementInterface::Execute_SetSprintingIntent(MyAvatar, bWantsToSprint);
+	IAdvancedCharacterMovementInterface::Execute_SetWalkingIntent(MyAvatar, bWantsToWalk);
+	return true;	
 }
 
 void UGASPAbility_Jog::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const bool bReplicateEndAbility, const bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-	TryActivateWalkAbility();
-}
 
-void UGASPAbility_Jog::TryActivateWalkAbility() const
-{
-	UAbilitySystemComponent* AbilityComponent = GetAbilitySystemComponentFromActorInfo();
-	if (IsValid(AbilityComponent))
+	// Do this **after** the ability has ended to avoid potential ability tag clashes!
+	if (bActivateWalkOnEnd && WalkAbilityActivationTags.IsValid())
 	{
-		AbilityComponent->TryActivateAbilitiesByTag(WalkAbilityActivationTags);	
-	}	
+		UAbilitySystemComponent* AbilityComponent = GetAbilitySystemComponentFromActorInfo();
+		if (IsValid(AbilityComponent))
+		{
+			AbilityComponent->TryActivateAbilitiesByTag(WalkAbilityActivationTags);	
+		}	
+	}
 }

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/NinjaGASGameplayAbility.h"
+#include "AbilitySystem/NinjaGASPBaseLocomotionCostAbility.h"
 #include "GASPAbility_Jog.generated.h"
 
 /**
@@ -16,9 +17,11 @@
  * For that scenario, this ability will interrupt an active walk ability, allowing the
  * GASP character to reset to the jogging state. When this ability ends, it will attempt
  * to re-activate the Walk ability.
+ *
+ * This ability supports cost (e.g. "stamina consumption").
  */
 UCLASS()
-class NINJAGASP_API UGASPAbility_Jog : public UNinjaGASGameplayAbility
+class NINJAGASP_API UGASPAbility_Jog : public UNinjaGASPBaseLocomotionCostAbility
 {
 	
 	GENERATED_BODY()
@@ -36,18 +39,15 @@ public:
 
 protected:
 
-	/** Tags used to activate the walk ability, when jog ends. */
+	/** Determines if this ability should revert to "walk" when it ends. */
 	UPROPERTY(EditDefaultsOnly, Category = "Jog")
-	FGameplayTagContainer WalkAbilityActivationTags;
+	bool bActivateWalkOnEnd;
 	
-	// -- Begin Gameplay Ability implementation
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
-	// -- End Gameplay Ability implementation
+	/** Tags used to activate the walk ability, when jog ends. */
+	UPROPERTY(EditDefaultsOnly, Category = "Jog", meta = (EditCondition = "bActivateWalkOnEnd"))
+	FGameplayTagContainer WalkAbilityActivationTags;
 
-	/**
-	 * Tries to activate the Walk Ability, using the pre-defined activation tags.
-	 * Should be invoked **after** this ability ends, to avoid tag clashes!
-	 */
-	void TryActivateWalkAbility() const;
+	virtual bool ActivateLocomotionMode_Implementation() override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	
 };
