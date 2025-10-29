@@ -1,15 +1,14 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "0.0.5",
 	"FriendlyName": "NinjaGASP",
-	"Description": "",
-	"Category": "Other",
-	"CreatedBy": "",
-	"CreatedByURL": "",
-	"DocsURL": "",
-	"MarketplaceURL": "",
-	"SupportURL": "",
+	"Description": "GASP sample integrated with all Ninja Bear Studio plugins.",
+	"Category": "Gameplay",
+	"CreatedBy": "Ninja Bear Studio Inc.",
+	"CreatedByURL": "https://tech.ninjabear.studio",
+	"DocsURL": "https://tech.ninjabear.studio/gasp-template-overview.html",
+	"SupportURL": "https://discord.gg/mkB5cQmDws",
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
@@ -18,7 +17,10 @@
 		{
 			"Name": "NinjaGASP",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+            "PlatformAllowList": [
+                "Win64", "Linux", "Mac"
+            ]
 		}
 	]
 }

@@ -19,10 +19,26 @@ with C++ yourself, but you will have to configure your machine following [Unreal
 ## Plugin Integration
 This project does not include commercial plugins and you can install them using one of the following options:
 
-- **Epic Games Launcher**: You can install all Ninja Bear Studio plugins to your engine, using the Launcher.
+- **Epic Games Launcher**: You can install all Ninja Bear Studio plugins to your engine, using the Launcher. (_soon, see note_)
 - **GitHub Sources**: You can clone plugins from GitHub into the project. These sources are ignored and won't be pushed to repository. This project includes scripts to initialize and update git dependencies.
+
+> **This is WIP**
+> this project is under development and it's only guaranteed to work with GIT versions of the plugins. Once the template stabilizes, it should
+> always work with both Fab and GitHub versions. For the time being, make sure to use GH. Make sure to check the scripts listed below.
+
+## GitHub Plugin Scripts
+You will find in the `/scripts/` folder two relevant commands that can help synchronizing with GitHub sources. Keep in mind that, in order to use these
+scripts, you **must have access to GitHub repositories**. You can request access by **verifying your licenses in the [support server](5)**.
+
+- `initialize_dependencies.bat`: Initializes all dependencies in the right location. Make sure to run them for the first time when you clone.
+- `update_plugins.bat`: Updates all plugins from their repositories.
+
+## License and Support
+This template is provided as-is, and while I offer best-effort support, there are no guarantees of direct assistance.
+For community help and discussion, please visit our [Discord server][5].
 
 [1]: https://www.youtube.com/watch?v=RDWNfIqvWBk&list=PLs9e0eJQMI2aaulgKJzC8feN1UEwDkEnq
 [2]: https://tech.ninjabear.studio/
 [3]: https://www.fab.com/sellers/Ninja%20Bear%20Studio
 [4]: https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine
+[5]: https://discord.gg/mkB5cQmDws
