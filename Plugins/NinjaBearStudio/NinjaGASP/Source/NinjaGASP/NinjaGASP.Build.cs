@@ -23,13 +23,17 @@ public class NinjaGASP : ModuleRules
 			// Ninja Bear Studio Modules
 			"NinjaCombat",
 			"NinjaGAS",
-			"NinjaInput"
+			"NinjaInput",
+			"NinjaInventory",
+			
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new []
 		{
 			"CoreUObject",
+			"GameplayCameras",
 			"Engine",
+			"NinjaInventoryCore",
 			"Slate",
 			"SlateCore"
 		});	

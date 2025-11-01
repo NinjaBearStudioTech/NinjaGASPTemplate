@@ -2,10 +2,13 @@
 #include "GameFramework/NinjaGASPCharacter.h"
 
 #include "AIController.h"
+#include "Camera/CameraComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
 #include "Components/NinjaCombatManagerComponent.h"
 #include "Components/NinjaCombatMotionWarpingComponent.h"
+#include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Hearing.h"
@@ -18,9 +21,11 @@ FName ANinjaGASPCharacter::MotionWarpingName = TEXT("MotionWarping");
 ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNinjaGASPCharacterMovementComponent>(CharacterMovementComponentName))
 {
+	bIsLocallyControlled = false;
 	bOverrideEyesViewPointForSightPerception = false;
 	SightSenseSourceLocationName = TEXT("head");
 	DefaultMeleeEffectLevel = 1.f;
+	GameplayCameraConsoleVariable = TEXT("DDCVar.NewGameplayCameraSystem.Enable");
 	
 	StimuliSenseSources.Add(UAISense_Sight::StaticClass());
 	StimuliSenseSources.Add(UAISense_Hearing::StaticClass());
@@ -32,20 +37,28 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	MotionWarping = CreateDefaultSubobject<UNinjaCombatMotionWarpingComponent>(MotionWarpingName);
 }
 
-void ANinjaGASPCharacter::OnPossess(APawn* InPawn)
+bool ANinjaGASPCharacter::IsLocallyControlled() const
 {
-	const AController* MyController = GetController();
-	if (IsValid(MyController))
-	{
-		if (MyController->IsA<AAIController>())
-		{
-			SetupBotMovement();	
-		}
-		else
-		{
-			SetupPlayerMovement();
-		}
-	}
+	// Add the cached variable, but keep the original just in case.
+	return bIsLocallyControlled || Super::IsLocallyControlled();
+}
+
+void ANinjaGASPCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	bIsLocallyControlled = NewController->IsLocalController();
+	SetupCharacterMovement();
+	SetupPlayerCamera();
+}
+
+void ANinjaGASPCharacter::UnPossessed()
+{
+	DisablePlayerCamera();
+	ClearHeldObject();
+	bIsLocallyControlled = false;
+	
+	Super::UnPossessed();
 }
 
 void ANinjaGASPCharacter::BeginPlay()
@@ -69,6 +82,139 @@ void ANinjaGASPCharacter::GetActorEyesViewPoint(FVector& OutLocation, FRotator& 
 	}
 	
 	Super::GetActorEyesViewPoint(OutLocation, OutRotation);	
+}
+
+void ANinjaGASPCharacter::OnRep_Controller()
+{
+	Super::OnRep_Controller();
+
+	const AController* CurrentController = GetController();
+	bIsLocallyControlled = IsValid(CurrentController) && CurrentController->IsLocalController();
+}
+
+void ANinjaGASPCharacter::RegisterStimuliSources()
+{
+	if (IsValid(StimuliSource) && !StimuliSenseSources.IsEmpty())
+	{
+		for (const TSubclassOf<UAISense>& Sense : StimuliSenseSources)
+		{
+			StimuliSource->RegisterForSense(Sense);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::SetupCharacterMovement()
+{
+	const AController* MyController = GetController();
+	if (IsValid(MyController))
+	{
+		if (MyController->IsA<AAIController>())
+		{
+			SetupBotMovement();	
+		}
+		else
+		{
+			SetupPlayerMovement();
+		}
+	}
+}
+
+void ANinjaGASPCharacter::SetupBotMovement()
+{
+	static constexpr bool bWantsToStrafe = false; 
+	Execute_SetStrafingIntent(this, bWantsToStrafe);
+
+	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+	if (IsValid(CharMovement))
+	{
+		CharMovement->bOrientRotationToMovement = true;
+	}
+}
+
+void ANinjaGASPCharacter::SetupPlayerMovement()
+{
+	static constexpr bool bWantsToStrafe = true; 
+	Execute_SetStrafingIntent(this, bWantsToStrafe);
+
+	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+	if (IsValid(CharMovement))
+	{
+		CharMovement->bOrientRotationToMovement = false;
+	}	
+}
+
+bool ANinjaGASPCharacter::ShouldUseGameplayCameras() const
+{
+	return UKismetSystemLibrary::GetConsoleVariableBoolValue(GameplayCameraConsoleVariable);
+}
+
+void ANinjaGASPCharacter::SetupPlayerCamera_Implementation()
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	if (HasAuthority() && !IsLocallyControlled())
+	{
+		Client_SetupPlayerCamera();
+		return;
+	}
+
+	if (IsLocallyControlled())
+	{
+		if (ShouldUseGameplayCameras())
+		{
+			UGameplayCameraComponent* GameplayCamera = FindComponentByClass<UGameplayCameraComponent>();
+			if (IsValid(GameplayCamera))
+			{
+				GameplayCamera->ActivateCameraForPlayerController(PlayerController);
+				OnPlayerCameraActivated(PlayerController);
+			}
+		}
+		else if (UCameraComponent* CameraComponent = FindComponentByClass<UCameraComponent>())
+		{
+			CameraComponent->Activate();
+			OnPlayerCameraActivated(PlayerController);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::Client_SetupPlayerCamera_Implementation()
+{
+	SetupPlayerCamera();
+}
+
+void ANinjaGASPCharacter::DisablePlayerCamera_Implementation()
+{
+	if (HasAuthority() && !IsLocallyControlled())
+	{
+		Client_SetupPlayerCamera();
+		return;
+	}
+
+	if (IsLocallyControlled())
+	{
+		if (ShouldUseGameplayCameras())
+		{
+			if (UGameplayCameraComponent* GameplayCamera = FindComponentByClass<UGameplayCameraComponent>())
+			{
+				OnPlayerCameraDeactivated();
+				GameplayCamera->DeactivateCamera(true);
+			}
+		}
+		else if (UCameraComponent* CameraComponent = FindComponentByClass<UCameraComponent>())
+		{
+			OnPlayerCameraDeactivated();
+			CameraComponent->Deactivate();
+		}
+	}
+}
+
+void ANinjaGASPCharacter::Client_DisablePlayerCamera_Implementation()
+{
+	DisablePlayerCamera();
 }
 
 UNinjaCombatManagerComponent* ANinjaGASPCharacter::GetCombatManager_Implementation() const
@@ -113,39 +259,4 @@ TSubclassOf<UGameplayEffect> ANinjaGASPCharacter::GetHitEffectClass_Implementati
 float ANinjaGASPCharacter::GetHitEffectLevel_Implementation() const
 {
 	return DefaultMeleeEffectLevel;
-}
-
-void ANinjaGASPCharacter::RegisterStimuliSources()
-{
-	if (IsValid(StimuliSource) && !StimuliSenseSources.IsEmpty())
-	{
-		for (const TSubclassOf<UAISense>& Sense : StimuliSenseSources)
-		{
-			StimuliSource->RegisterForSense(Sense);
-		}
-	}
-}
-
-void ANinjaGASPCharacter::SetupBotMovement()
-{
-	static constexpr bool bWantsToStrafe = false; 
-	Execute_SetStrafingIntent(this, bWantsToStrafe);
-
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	if (IsValid(CharMovement))
-	{
-		CharMovement->bOrientRotationToMovement = true;
-	}
-}
-
-void ANinjaGASPCharacter::SetupPlayerMovement()
-{
-	static constexpr bool bWantsToStrafe = true; 
-	Execute_SetStrafingIntent(this, bWantsToStrafe);
-
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	if (IsValid(CharMovement))
-	{
-		CharMovement->bOrientRotationToMovement = false;
-	}	
 }

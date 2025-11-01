@@ -22,5 +22,31 @@
                 "Win64", "Linux", "Mac"
             ]
 		}
-	]
+	],
+    "Plugins": [
+        {
+            "Name": "GameplayAbilities",
+            "Enabled": true
+        },
+        {
+            "Name": "GameplayCameras",
+            "Enabled": true
+        },        
+        {
+            "Name": "ModularGameplay",
+            "Enabled": true
+        },
+        {
+            "Name": "NinjaCombat",
+            "Enabled": true
+        },
+        {
+            "Name": "NinjaGAS",
+            "Enabled": true
+        },
+        {
+            "Name": "NinjaInput",
+            "Enabled": true
+        }        
+    ]
 }

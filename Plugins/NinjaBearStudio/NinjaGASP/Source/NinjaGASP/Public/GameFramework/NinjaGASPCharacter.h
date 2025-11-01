@@ -11,6 +11,7 @@
 #include "NinjaGASPCharacter.generated.h"
 
 class UAISense;
+class UGameplayCameraComponent;
 class UNinjaCombatMotionWarpingComponent;
 class UAIPerceptionStimuliSourceComponent;
 class UNinjaCombatManagerComponent;
@@ -18,10 +19,6 @@ class UNinjaCombatComboManagerComponent;
 
 /**
  * Base character, with functionality that can be shared between players and AI.
- *
- * Provides the boilerplate code necessary for the Gameplay Ability System, but Player Classes
- * using a Player State might need to perform certain extensions to disable that (this framework
- * provides an appropriate class to that end)
  */
 UCLASS(Abstract)
 class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface,
@@ -33,16 +30,15 @@ class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPre
 
 public:
 
-	static FName CombatManagerName;
-	static FName ComboManagerName;
-	static FName MotionWarpingName;
-	
 	ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// -- Begin Pawn implementation
-	virtual void OnPossess(APawn *InPawn);
+	virtual bool IsLocallyControlled() const override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void UnPossessed() override;
 	virtual void BeginPlay() override;
 	virtual void GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const override;
+	virtual void OnRep_Controller() override;
 	// -- End Pawn implementation
 
 	// -- Begin Combat System implementation
@@ -59,20 +55,48 @@ public:
 	virtual float GetHitEffectLevel_Implementation() const override;
 	// -- End Melee Mesh implementation
 	
+	/**
+	 * Checks if the character should use Gameplay Cameras, based on the cvar.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GASP|Character")
+	bool ShouldUseGameplayCameras() const;
+	
+	/**
+	 * Clears any object directly held by the character.
+	 *
+	 * Usually, this is mostly related to the default GASPALS object attachment and this function
+	 * is simply exposing that. But as you get more and more into the Inventory system integration,
+	 * this should be just "prototype code".
+	 *
+	 * Eventually, when the entire functionality is migrated to the inventory integration, including
+	 * a selection wheel for these default GASPALS items, this functionality might be removed.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	void ClearHeldObject();
+	virtual void ClearHeldObject_Implementation() {  }
+	
 protected:
 
+	static FName CombatManagerName;
+	static FName ComboManagerName;
+	static FName MotionWarpingName;
+	
 	/** All stimuli sources registered with this character. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI")
 	TArray<TSubclassOf<UAISense>> StimuliSenseSources;
 
 	/** If enabled, allows overriding the source for Sight perception to this bone or socket. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI", meta = (InlineEditConditionToggle))
 	bool bOverrideEyesViewPointForSightPerception;
 
 	/** Bone or socket used as the source (location and rotation) used by the Sight sense as "eye location". */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI", meta = (EditCondition = bOverrideEyesViewPointForSightPerception))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI", meta = (EditCondition = bOverrideEyesViewPointForSightPerception))
 	FName SightSenseSourceLocationName;
-	
+
+	/** Console variable that toggles Gameplay Camera and Camera Component setups. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Player Camera")
+	FString GameplayCameraConsoleVariable;
+
 	/**
 	 * Default gameplay effect used when melee damage is applied.
 	 *
@@ -82,7 +106,7 @@ protected:
 	 * You can also provide dynamic values as needed by overwriting "GetHitEffectClass",
 	 * from the Combat Melee Interface, implemented by this character.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee Combat")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Melee Combat")
 	TSubclassOf<UGameplayEffect> DefaultMeleeEffectClass;
 
 	/**
@@ -95,20 +119,61 @@ protected:
 	 * You can also provide dynamic values as needed by overwriting "GetHitEffectLevel",
 	 * from the Combat Melee Interface, implemented by this character.
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee Combat", meta = (UIMin = 0.f, ClampMin = 0.f))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Melee Combat", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float DefaultMeleeEffectLevel;
 
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();
 	
+	/** Setups the character movement for bots and player characters. */
+	void SetupCharacterMovement();
+	
 	/** Configures movement-related features for an AI controlled pawn. */
-	void SetupBotMovement();
+	virtual void SetupBotMovement();
 
 	/** Configures movement-related features for a Player controlled pawn. */
-	void SetupPlayerMovement();
+	virtual void SetupPlayerMovement();
+	
+	/**
+	 * Initializes the camera, either Gameplay Camera or Camera Component.
+	 * 
+	 * Ideally, this should be called when the character is possessed. This function will rely
+	 * on a Player Controller, so being possessed by an AI has basically no effect.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	void SetupPlayerCamera();
+	
+	/**
+	 * Disables the Gameplay Camera or Camera Component.
+	 *
+	 * Ideally, this should be called when the character is unpossessed. This function will safely
+	 * check for current components and de-initialize them correctly, whether they are based on
+	 * the Gameplay Camera system or default Camera Component.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	void DisablePlayerCamera();
+	
+	/**
+	 * Invoked when a gameplay camera activates.
+	 * May be used to add camera rigs to layers.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	void OnPlayerCameraActivated(APlayerController* PlayerController);
+	virtual void OnPlayerCameraActivated_Implementation(APlayerController* PlayerController) { }
 
+	/**
+	 * Invoked when a gameplay camera deactivates.
+	 * At this point, the player controller already unpossessed the pawn.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	void OnPlayerCameraDeactivated();
+	virtual void OnPlayerCameraDeactivated_Implementation() { }
+	
 private:
 
+	/** Cached value, defined when the character is possessed. */
+	bool bIsLocallyControlled;
+	
 	/** Registers all stimuli sources for this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> StimuliSource;
@@ -124,5 +189,11 @@ private:
 	/** Motion warping component used by both GASP and the combat system. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UNinjaCombatMotionWarpingComponent> MotionWarping;
-	
+
+	UFUNCTION(Client, Reliable)
+	void Client_SetupPlayerCamera();
+
+	UFUNCTION(Client, Reliable)
+	void Client_DisablePlayerCamera();
+
 };
