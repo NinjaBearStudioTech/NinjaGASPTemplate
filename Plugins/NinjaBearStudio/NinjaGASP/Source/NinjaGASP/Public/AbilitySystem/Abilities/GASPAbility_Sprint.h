@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/NinjaGASGameplayAbility.h"
 #include "AbilitySystem/NinjaGASPBaseLocomotionCostAbility.h"
 #include "GASPAbility_Sprint.generated.h"
 

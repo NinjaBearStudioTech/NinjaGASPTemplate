@@ -25,46 +25,86 @@ class NINJAGASP_API IAdvancedCharacterMovementInterface
 public:
 
 	/**
+	 * Provides a vector with all walk speeds for the character.
+	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	FVector GetWalkSpeeds() const;
+	virtual FVector GetWalkSpeeds_Implementation() const { return FVector(200.f, 180.f, 150.f); }
+
+	/**
+	 * Provides a vector with all run speeds for the character.
+	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	FVector GetRunSpeeds() const;
+	virtual FVector GetRunSpeeds_Implementation() const { return FVector(500.f, 350.f, 300.f); }
+
+	/**
+	 * Provides a vector with all sprint speeds for the character.
+	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	FVector GetSprintSpeeds() const;
+	virtual FVector GetSprintSpeeds_Implementation() const { return FVector(700.f, 700.f, 700.f); }	
+
+	/**
+	 * Provides a vector with all crouch speeds for the character.
+	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	FVector GetCrouchSpeeds() const;
+	virtual FVector GetCrouchSpeeds_Implementation() const { return FVector(225.f, 200.f, 180.f); }	
+
+	/**
+	 * A curve that maps rotations (x) to different speeds (y).
+	 * Used to calculate max speed when the character is strafing.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	UCurveFloat* GetStrafeSpeedMapCurve() const;
+	virtual UCurveFloat* GetStrafeSpeedMapCurve_Implementation() const { return nullptr; }
+	
+	/**
 	 * Informs if the character is currently walking.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	bool IsWalking() const;
-	bool IsWalking_Implementation() const { return false; }
+	virtual bool IsWalking_Implementation() const { return false; }
 
 	/**
 	 * Informs if the character is currently sprinting.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	bool IsSprinting() const;
-	bool IsSprinting_Implementation() const { return false; }
+	virtual bool IsSprinting_Implementation() const { return false; }
 
 	/**
 	 * Informs if the character is currently strafing.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	bool IsStrafing() const;
-	bool IsStrafing_Implementation() const { return false; }
+	virtual bool IsStrafing_Implementation() const { return false; }
 	
 	/**
 	 * Registers the walking intent.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetWalkingIntent(bool bWantsToWalk);
-	void SetWalkingIntent_Implementation(bool bWantsToWalk) const { }
+	virtual void SetWalkingIntent_Implementation(bool bWantsToWalk) const { }
 
 	/**
 	 * Registers the sprinting intent.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetSprintingIntent(bool bWantsToSprint);
-	void SetSprintingIntent_Implementation(bool bWantsToSprint) const { }
+	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) const { }
 
 	/**
 	 * Registers the strafing intent.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Advanced Character Movement Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetStrafingIntent(bool bWantsToStrafe);
-	void SetStrafingIntent_Implementation(bool bWantsToStrafe) const { }
+	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) const { }
 	
 };
 

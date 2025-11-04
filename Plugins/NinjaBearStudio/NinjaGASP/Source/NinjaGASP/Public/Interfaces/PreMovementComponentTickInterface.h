@@ -28,7 +28,7 @@ public:
 	/**
 	 * Extension point that can run any logic before the Character Movement Component tick.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Pre Movement Component Tick Interface")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Pre Movement Component Tick Interface")
 	void PreMovementComponentTick();
 
 };
