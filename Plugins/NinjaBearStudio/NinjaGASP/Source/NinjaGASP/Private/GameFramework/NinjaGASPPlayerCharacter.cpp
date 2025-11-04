@@ -2,12 +2,16 @@
 #include "GameFramework/NinjaGASPPlayerCharacter.h"
 
 #include "AbilitySystemGlobals.h"
+#include "NinjaInventoryFunctionLibrary.h"
+#include "AbilitySystem/NinjaGASAbilitySystemComponent.h"
+#include "Components/NinjaInventoryManagerComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/PlayerPossessedAwareComponentInterface.h"
 
 ANinjaGASPPlayerCharacter::ANinjaGASPPlayerCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
-		.DoNotCreateDefaultSubobject(AbilitySystemComponentName))
+		.DoNotCreateDefaultSubobject(AbilitySystemComponentName)
+		.DoNotCreateDefaultSubobject(InventoryManagerName))
 {
 	bInitializeAbilityComponentOnBeginPlay = false;
 	NetPriority = 3.f;
@@ -34,15 +38,35 @@ void ANinjaGASPPlayerCharacter::PossessedBy(AController* NewController)
 
 void ANinjaGASPPlayerCharacter::InitializeFromPlayerState()
 {
-	const APlayerState* CurrentPlayerState = GetPlayerState();
+	APlayerState* CurrentPlayerState = GetPlayerState();
+	InitializeAbilitySystemComponentFromPlayerState(CurrentPlayerState);
+	InitializeInventorySystemComponentFromPlayerState(CurrentPlayerState);
+}
+
+void ANinjaGASPPlayerCharacter::InitializeAbilitySystemComponentFromPlayerState(APlayerState* CurrentPlayerState)
+{
 	if (IsValid(CurrentPlayerState))
 	{
 		CharacterAbilitiesPtr = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(CurrentPlayerState);
+		SetupAbilitySystemComponent(CurrentPlayerState);
 	}
 	else
 	{
+		ClearAbilitySystemComponent();
 		CharacterAbilitiesPtr.Reset();
+	}	
+}
+
+void ANinjaGASPPlayerCharacter::InitializeInventorySystemComponentFromPlayerState(APlayerState* CurrentPlayerState)
+{
+	if (IsValid(CurrentPlayerState))
+	{
+		CharacterInventoryPtr = UNinjaInventoryFunctionLibrary::GetInventoryManager(this);
 	}
+	else
+	{
+		CharacterInventoryPtr.Reset();
+	}	
 }
 
 void ANinjaGASPPlayerCharacter::SetupAbilitySystemComponent(AActor* AbilitySystemOwner)
@@ -56,6 +80,24 @@ void ANinjaGASPPlayerCharacter::SetupAbilitySystemComponent(AActor* AbilitySyste
 			CharacterAbilitiesPtr = NewAbilityComponent;
 		}
 	}
+}
+
+UAbilitySystemComponent* ANinjaGASPPlayerCharacter::GetAbilitySystemComponent() const
+{
+	if (CharacterAbilitiesPtr.IsValid() && CharacterAbilitiesPtr->IsValidLowLevelFast())
+	{
+		return CharacterAbilitiesPtr.Get();
+	}
+	return nullptr;
+}
+
+UNinjaInventoryManagerComponent* ANinjaGASPPlayerCharacter::GetInventoryManager_Implementation() const
+{
+	if (CharacterInventoryPtr.IsValid() && CharacterInventoryPtr->IsValidLowLevelFast())
+	{
+		return CharacterInventoryPtr.Get();
+	}
+	return nullptr;
 }
 
 void ANinjaGASPPlayerCharacter::UnPossessed()

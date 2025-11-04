@@ -31,11 +31,24 @@ public:
 	virtual void UnPossessed() override;
 	virtual void OnRep_PlayerState() override;
 	virtual void SetupAbilitySystemComponent(AActor* AbilitySystemOwner) override;
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	// -- End Character implementation
 
+protected:
+
+	/** Initializes (or clears) the Ability System, from the provided Player State. */
+	virtual void InitializeAbilitySystemComponentFromPlayerState(APlayerState* CurrentPlayerState);
+
+	/** Initializes (or clears) the Inventory Manager, from the provided Player State. */
+	virtual void InitializeInventorySystemComponentFromPlayerState(APlayerState* CurrentPlayerState);
+	
 private:
 
 	/** Weak reference to the Character's Ability Component. */
 	TWeakObjectPtr<UAbilitySystemComponent> CharacterAbilitiesPtr;	
+
+	/** Weak reference to the Character's Inventory Component. */
+	TWeakObjectPtr<UNinjaInventoryManagerComponent> CharacterInventoryPtr;
 	
 };

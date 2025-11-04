@@ -4,8 +4,11 @@
 #include "AIController.h"
 #include "Camera/CameraComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
+#include "Components/NinjaCombatEquipmentAdapterComponent.h"
 #include "Components/NinjaCombatManagerComponent.h"
 #include "Components/NinjaCombatMotionWarpingComponent.h"
+#include "Components/NinjaEquipmentManagerComponent.h"
+#include "Components/NinjaInventoryManagerComponent.h"
 #include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -17,6 +20,9 @@
 FName ANinjaGASPCharacter::CombatManagerName = TEXT("CombatManager");
 FName ANinjaGASPCharacter::ComboManagerName = TEXT("ComboManager");
 FName ANinjaGASPCharacter::MotionWarpingName = TEXT("MotionWarping");
+FName ANinjaGASPCharacter::WeaponManagerName = TEXT("WeaponManager");
+FName ANinjaGASPCharacter::InventoryManagerName = TEXT("InventoryManager");
+FName ANinjaGASPCharacter::EquipmentManagerName = TEXT("EquipmentManager");
 
 ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNinjaGASPCharacterMovementComponent>(CharacterMovementComponentName))
@@ -35,6 +41,9 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	CombatManager = CreateDefaultSubobject<UNinjaCombatManagerComponent>(CombatManagerName);
 	ComboManager = CreateDefaultSubobject<UNinjaCombatComboManagerComponent>(ComboManagerName);
 	MotionWarping = CreateDefaultSubobject<UNinjaCombatMotionWarpingComponent>(MotionWarpingName);
+	WeaponManager = CreateDefaultSubobject<UNinjaCombatEquipmentAdapterComponent>(WeaponManagerName);
+	InventoryManager = CreateOptionalDefaultSubobject<UNinjaInventoryManagerComponent>(InventoryManagerName);
+	EquipmentManager = CreateDefaultSubobject<UNinjaEquipmentManagerComponent>(EquipmentManagerName);
 }
 
 bool ANinjaGASPCharacter::IsLocallyControlled() const
@@ -229,9 +238,10 @@ USkeletalMeshComponent* ANinjaGASPCharacter::GetCombatMesh_Implementation() cons
 
 UAnimInstance* ANinjaGASPCharacter::GetCombatAnimInstance_Implementation() const
 {
-	// In GASP, this is very important. We want to always return the anim instance that
-	// is driving the animation, and not the retarget proxy. This means our Anim Instance
-	// always comes from the "main mesh" even when we change the combat mesh!
+	// In GASP, this is very important!
+	//
+	// We want to always return the anim instance that is driving the animation, and not the retarget proxy. 
+	// This means our Anim Instance always comes from the "main mesh" even when we change the combat mesh!
 	//
 	return GetMesh()->GetAnimInstance();
 }
@@ -244,6 +254,11 @@ UActorComponent* ANinjaGASPCharacter::GetComboManagerComponent_Implementation() 
 UActorComponent* ANinjaGASPCharacter::GetMotionWarpingComponent_Implementation() const
 {
 	return MotionWarping;
+}
+
+UActorComponent* ANinjaGASPCharacter::GetWeaponManagerComponent_Implementation() const
+{
+	return WeaponManager;
 }
 
 UMeshComponent* ANinjaGASPCharacter::GetMeleeMesh_Implementation() const
@@ -259,4 +274,19 @@ TSubclassOf<UGameplayEffect> ANinjaGASPCharacter::GetHitEffectClass_Implementati
 float ANinjaGASPCharacter::GetHitEffectLevel_Implementation() const
 {
 	return DefaultMeleeEffectLevel;
+}
+
+UMeshComponent* ANinjaGASPCharacter::GetProjectileSourceMesh_Implementation(FName SocketName) const
+{
+	return Execute_GetCombatMesh(this);
+}
+
+UNinjaInventoryManagerComponent* ANinjaGASPCharacter::GetInventoryManager_Implementation() const
+{
+	return InventoryManager;
+}
+
+UNinjaEquipmentManagerComponent* ANinjaGASPCharacter::GetEquipmentManager_Implementation() const
+{
+	return EquipmentManager;
 }

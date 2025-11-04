@@ -22,10 +22,13 @@ public class NinjaGASP : ModuleRules
 			
 			// Ninja Bear Studio Modules
 			"NinjaCombat",
+			"NinjaCombatCore",
+			"NinjaCombatInventory",
 			"NinjaGAS",
 			"NinjaInput",
 			"NinjaInventory",
-			
+			"NinjaInventoryCore",
+			"NinjaInventoryEquipment",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new []

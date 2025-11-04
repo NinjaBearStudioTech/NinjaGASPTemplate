@@ -5,7 +5,10 @@
 #include "GameFramework/NinjaGASCharacter.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
 #include "Interfaces/CombatMeleeInterface.h"
+#include "Interfaces/CombatRangedInterface.h"
 #include "Interfaces/CombatSystemInterface.h"
+#include "Interfaces/EquipmentSystemInterface.h"
+#include "Interfaces/InventorySystemInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
 #include "Interfaces/TraversalMovementInputInterface.h"
 #include "NinjaGASPCharacter.generated.h"
@@ -16,6 +19,9 @@ class UNinjaCombatMotionWarpingComponent;
 class UAIPerceptionStimuliSourceComponent;
 class UNinjaCombatManagerComponent;
 class UNinjaCombatComboManagerComponent;
+class UNinjaCombatBaseWeaponManagerComponent;
+class UNinjaInventoryManagerComponent;
+class UNinjaEquipmentManagerComponent;
 
 /**
  * Base character, with functionality that can be shared between players and AI.
@@ -23,7 +29,7 @@ class UNinjaCombatComboManagerComponent;
 UCLASS(Abstract)
 class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface,
 	public IAdvancedCharacterMovementInterface, public ITraversalMovementInputInterface, public ICombatSystemInterface, 
-	public ICombatMeleeInterface
+	public ICombatMeleeInterface, public ICombatRangedInterface, public IInventorySystemInterface, public IEquipmentSystemInterface
 {
 	
 	GENERATED_BODY()
@@ -41,19 +47,22 @@ public:
 	virtual void OnRep_Controller() override;
 	// -- End Pawn implementation
 
-	// -- Begin Combat System implementation
+	// -- Begin Combat/Melee/Ranged implementation
 	virtual UNinjaCombatManagerComponent* GetCombatManager_Implementation() const override;
 	virtual USkeletalMeshComponent* GetCombatMesh_Implementation() const override;
 	virtual UAnimInstance* GetCombatAnimInstance_Implementation() const override;
 	virtual UActorComponent* GetComboManagerComponent_Implementation() const override;
 	virtual UActorComponent* GetMotionWarpingComponent_Implementation() const override;
-	// -- End Combat System implementation
-
-	// -- Begin Melee Mesh implementation
+	virtual UActorComponent* GetWeaponManagerComponent_Implementation() const override;
 	virtual UMeshComponent* GetMeleeMesh_Implementation() const override;
 	virtual TSubclassOf<UGameplayEffect> GetHitEffectClass_Implementation() const override;
 	virtual float GetHitEffectLevel_Implementation() const override;
-	// -- End Melee Mesh implementation
+	virtual UMeshComponent* GetProjectileSourceMesh_Implementation(FName SocketName) const override;
+
+	// -- Begin Inventory/Equipment implementation
+	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
+	virtual UNinjaEquipmentManagerComponent* GetEquipmentManager_Implementation() const override;
+	// -- End Inventory/Equipment implementation
 	
 	/**
 	 * Checks if the character should use Gameplay Cameras, based on the cvar.
@@ -80,6 +89,9 @@ protected:
 	static FName CombatManagerName;
 	static FName ComboManagerName;
 	static FName MotionWarpingName;
+	static FName WeaponManagerName;
+	static FName InventoryManagerName;
+	static FName EquipmentManagerName;
 	
 	/** All stimuli sources registered with this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI")
@@ -190,6 +202,21 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UNinjaCombatMotionWarpingComponent> MotionWarping;
 
+	/** Weapon Manager integrated with the Inventory/Equipment system. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UNinjaCombatBaseWeaponManagerComponent> WeaponManager;
+	
+	/**
+	 * Manages all items assigned to this character.
+	 * This is an optional component, as it may be retrieved from the Player State.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UNinjaInventoryManagerComponent> InventoryManager;
+
+	/** Equipment manager that handles physical presence of items in the world. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UNinjaEquipmentManagerComponent> EquipmentManager;
+	
 	UFUNCTION(Client, Reliable)
 	void Client_SetupPlayerCamera();
 
