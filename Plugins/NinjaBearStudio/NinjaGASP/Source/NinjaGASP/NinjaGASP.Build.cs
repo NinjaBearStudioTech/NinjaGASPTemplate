@@ -18,6 +18,7 @@ public class NinjaGASP : ModuleRules
 			"GameplayTasks",
 			"ModularGameplay",
 			"NetCore",
+			"PoseSearch",
 			"UMG",
 			
 			// Ninja Bear Studio Modules
@@ -33,6 +34,7 @@ public class NinjaGASP : ModuleRules
 		
 		PrivateDependencyModuleNames.AddRange(new []
 		{
+			"AnimationWarpingRuntime",
 			"CoreUObject",
 			"GameplayCameras",
 			"Engine",

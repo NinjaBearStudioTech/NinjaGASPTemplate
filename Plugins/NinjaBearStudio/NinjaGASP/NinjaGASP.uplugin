@@ -25,6 +25,10 @@
 	],
     "Plugins": [
         {
+            "Name": "AnimationWarping",
+            "Enabled": true
+        },        
+        {
             "Name": "GameplayAbilities",
             "Enabled": true
         },
@@ -47,6 +51,10 @@
         {
             "Name": "NinjaInput",
             "Enabled": true
-        }        
+        },
+        {
+            "Name": "PoseSearch",
+            "Enabled": true
+        }
     ]
 }

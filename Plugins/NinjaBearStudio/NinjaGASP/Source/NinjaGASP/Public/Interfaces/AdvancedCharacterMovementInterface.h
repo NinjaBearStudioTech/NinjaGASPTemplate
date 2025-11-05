@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/ECharacterGait.h"
 #include "UObject/Interface.h"
 #include "AdvancedCharacterMovementInterface.generated.h"
 
@@ -24,6 +25,13 @@ class NINJAGASP_API IAdvancedCharacterMovementInterface
 
 public:
 
+	/**
+	 * Provides the gait currently assigned to the character.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	ECharacterGait GetCharacterGait() const;
+	virtual ECharacterGait GetCharacterGait_Implementation() const { return ECharacterGait::Run; }
+	
 	/**
 	 * Provides a vector with all walk speeds for the character.
 	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.

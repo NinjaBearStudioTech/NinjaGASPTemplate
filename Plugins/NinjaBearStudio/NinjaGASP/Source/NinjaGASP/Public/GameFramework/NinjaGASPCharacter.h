@@ -58,7 +58,8 @@ public:
 	virtual TSubclassOf<UGameplayEffect> GetHitEffectClass_Implementation() const override;
 	virtual float GetHitEffectLevel_Implementation() const override;
 	virtual UMeshComponent* GetProjectileSourceMesh_Implementation(FName SocketName) const override;
-
+	// -- End Combat/Melee/Ranged implementation
+	
 	// -- Begin Inventory/Equipment implementation
 	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	virtual UNinjaEquipmentManagerComponent* GetEquipmentManager_Implementation() const override;
