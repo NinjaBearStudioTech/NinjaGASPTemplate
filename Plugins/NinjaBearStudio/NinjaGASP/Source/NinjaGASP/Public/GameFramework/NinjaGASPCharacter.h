@@ -38,14 +38,18 @@ public:
 
 	ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// -- Begin Pawn implementation
+	// -- Begin Pawn/Character implementation
 	virtual bool IsLocallyControlled() const override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const override;
 	virtual void OnRep_Controller() override;
-	// -- End Pawn implementation
+	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
+	virtual void OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta) override;
+	// -- End Pawn/Character implementation
 
 	// -- Begin Combat/Melee/Ranged implementation
 	virtual UNinjaCombatManagerComponent* GetCombatManager_Implementation() const override;
@@ -64,11 +68,16 @@ public:
 	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	virtual UNinjaEquipmentManagerComponent* GetEquipmentManager_Implementation() const override;
 	// -- End Inventory/Equipment implementation
+
+	// -- Begin Advanced Movement implementation
+	virtual bool HasJustLanded_Implementation() const override { return bJustLanded; }
+	virtual FVector GetLandVelocity_Implementation() const override { return LandedVelocity; }
+	// -- End Advanced Movement implementation
 	
 	/**
 	 * Checks if the character should use Gameplay Cameras, based on the cvar.
 	 */
-	UFUNCTION(BlueprintPure, Category = "GASP|Character")
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
 	bool ShouldUseGameplayCameras() const;
 	
 	/**
@@ -81,7 +90,7 @@ public:
 	 * Eventually, when the entire functionality is migrated to the inventory integration, including
 	 * a selection wheel for these default GASPALS items, this functionality might be removed.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void ClearHeldObject();
 	virtual void ClearHeldObject_Implementation() {  }
 	
@@ -135,6 +144,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Melee Combat", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float DefaultMeleeEffectLevel;
 
+	/** Time to wait, before resetting the landed flag. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float LandingResetTime;
+	
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();
 	
@@ -153,7 +166,7 @@ protected:
 	 * Ideally, this should be called when the character is possessed. This function will rely
 	 * on a Player Controller, so being possessed by an AI has basically no effect.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void SetupPlayerCamera();
 	
 	/**
@@ -163,14 +176,14 @@ protected:
 	 * check for current components and de-initialize them correctly, whether they are based on
 	 * the Gameplay Camera system or default Camera Component.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void DisablePlayerCamera();
 	
 	/**
 	 * Invoked when a gameplay camera activates.
 	 * May be used to add camera rigs to layers.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void OnPlayerCameraActivated(APlayerController* PlayerController);
 	virtual void OnPlayerCameraActivated_Implementation(APlayerController* PlayerController) { }
 
@@ -178,14 +191,42 @@ protected:
 	 * Invoked when a gameplay camera deactivates.
 	 * At this point, the player controller already unpossessed the pawn.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "GASP|Character", meta = (ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void OnPlayerCameraDeactivated();
 	virtual void OnPlayerCameraDeactivated_Implementation() { }
+
+	/**
+	 * Custom event that handles the character jumping.
+	 *
+	 * @param GroundSpeedBeforeJump
+	 *		Speed on ground, before the jump started.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character")
+	void HandleCharacterJumped(float GroundSpeedBeforeJump);
+	
+	/**
+	 * Custom event that handles the character landing.
+	 * Make sure to call super to keep track of the "just landed" flag!
+	 *
+	 * @param Velocity
+	 *		Velocity the character had while landing.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character")
+	void HandleCharacterLanded(FVector Velocity);
 	
 private:
 
 	/** Cached value, defined when the character is possessed. */
 	bool bIsLocallyControlled;
+
+	/** Informs if the character has just landed. Should reset after an interval. */
+	bool bJustLanded;
+	
+	/** Stores the velocity when the character lands. */
+	FVector LandedVelocity;
+
+	/** Timer handle that resets the landed flag. */
+	FTimerHandle LandedResetTimerHandle;
 	
 	/** Registers all stimuli sources for this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))

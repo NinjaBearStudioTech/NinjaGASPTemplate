@@ -92,6 +92,27 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	bool IsStrafing() const;
 	virtual bool IsStrafing_Implementation() const { return false; }
+
+	/**
+	 * Informs if the character is currently aiming.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	bool IsAiming() const;
+	virtual bool IsAiming_Implementation() const { return false; }
+
+	/**
+	 * Informs if the character is in ragdoll mode.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	bool InRagdoll() const;
+	virtual bool InRagdoll_Implementation() const { return false; }
+
+	/**
+	 * Informs if the character has landed recently.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	bool HasJustLanded() const;
+	virtual bool HasJustLanded_Implementation() const { return false; }
 	
 	/**
 	 * Registers the walking intent.
@@ -113,6 +134,19 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetStrafingIntent(bool bWantsToStrafe);
 	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) const { }
+
+	/**
+	 * Registers the aiming intent.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	void SetAimingIntent(bool bWantsToStrafe);
+	virtual void SetAimingIntent_Implementation(bool bWantsToAim) const { }
+
+	/**
+	 * Provides the last velocity when the character landed.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	FVector GetLandVelocity() const;
 	
 };
 

@@ -12,6 +12,7 @@
 #include "Types/ECharacterMovementState.h"
 #include "Types/ECharacterRotationMode.h"
 #include "Types/ECharacterStance.h"
+#include "Types/EPlayerCameraMode.h"
 #include "NinjaGASPAnimInstance.generated.h"
 
 class ACharacter;
@@ -134,6 +135,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	FVector LastNonZeroVelocity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	FVector LandedVelocity;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	float Speed2D;
@@ -145,7 +149,22 @@ public:
 	bool bHasVelocity;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	bool bJustLanded;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ragdoll")
+	bool bInRagdoll;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ragdoll")
+	float FlailRate;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aiming")
+	bool bIsAiming;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aiming")
 	FVector2D AimOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aiming")
+	EPlayerCameraMode CameraMode;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "States")
 	ECharacterMovementMode MovementMode;
@@ -310,6 +329,18 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateStates(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+
+	/**
+	 * Updates the aiming state and aim offset vector.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	void UpdateAiming(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+
+	/**
+	 * Updates details about the ragdoll state.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	void UpdateRagdoll(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 	
 	/**
 	 * Provides an animation node that indicates the offset root transform.

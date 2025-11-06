@@ -2,6 +2,7 @@
 #include "GameFramework/NinjaGASPCharacter.h"
 
 #include "AIController.h"
+#include "NinjaGASPTags.h"
 #include "Camera/CameraComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
 #include "Components/NinjaCombatEquipmentAdapterComponent.h"
@@ -28,10 +29,16 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNinjaGASPCharacterMovementComponent>(CharacterMovementComponentName))
 {
 	bIsLocallyControlled = false;
+	bJustLanded = false;
 	bOverrideEyesViewPointForSightPerception = false;
 	SightSenseSourceLocationName = TEXT("head");
 	DefaultMeleeEffectLevel = 1.f;
 	GameplayCameraConsoleVariable = TEXT("DDCVar.NewGameplayCameraSystem.Enable");
+	LandedVelocity = FVector::ZeroVector;
+	LandingResetTime = 0.3f;
+
+	const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName(); 
+	GetMesh()->ComponentTags.Add(PrimaryMeshTag);
 	
 	StimuliSenseSources.Add(UAISense_Sight::StaticClass());
 	StimuliSenseSources.Add(UAISense_Hearing::StaticClass());
@@ -76,6 +83,12 @@ void ANinjaGASPCharacter::BeginPlay()
 	RegisterStimuliSources();
 }
 
+void ANinjaGASPCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorld()->GetTimerManager().ClearAllTimersForObject(this);
+	Super::EndPlay(EndPlayReason);
+}
+
 void ANinjaGASPCharacter::GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const
 {
 	if (bOverrideEyesViewPointForSightPerception)
@@ -99,6 +112,48 @@ void ANinjaGASPCharacter::OnRep_Controller()
 
 	const AController* CurrentController = GetController();
 	bIsLocallyControlled = IsValid(CurrentController) && CurrentController->IsLocalController();
+}
+
+void ANinjaGASPCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+
+	const float GroundSpeedBeforeJump = GetCharacterMovement()->Velocity.Size2D();
+	HandleCharacterJumped(GroundSpeedBeforeJump);
+}
+
+void ANinjaGASPCharacter::HandleCharacterJumped_Implementation(float GroundSpeedBeforeJump)
+{
+}
+
+void ANinjaGASPCharacter::Landed(const FHitResult& Hit)
+{
+	// Store the landed velocity before calling super, since that will broadcast to blueprints,
+	// and when that happens, we want to make sure that the property is already updated.
+	//
+	LandedVelocity = GetCharacterMovement()->Velocity;
+	Super::Landed(Hit);
+	HandleCharacterLanded(LandedVelocity);
+}
+
+void ANinjaGASPCharacter::HandleCharacterLanded_Implementation(const FVector Velocity)
+{
+	// This is probably being called both on servers and clients. We want to make sure
+	// that the flag is set (and reset soon) and also, that whatever velocity was received
+	// is set as the Landed Velocity, since simulated clients will provide this.
+	//
+	bJustLanded = true;
+	LandedVelocity = Velocity;
+
+	const FTimerDelegate TimerDelegate = FTimerDelegate::CreateWeakLambda(this, [this](){ bJustLanded = false; }); 
+	GetWorld()->GetTimerManager().SetTimer(LandedResetTimerHandle, TimerDelegate, LandingResetTime, false);
+}
+
+void ANinjaGASPCharacter::OnWalkingOffLedge_Implementation(const FVector& PreviousFloorImpactNormal,
+	const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float const TimeDelta)
+{
+	Super::OnWalkingOffLedge_Implementation(PreviousFloorImpactNormal, PreviousFloorContactNormal, PreviousLocation, TimeDelta);
+	UnCrouch();
 }
 
 void ANinjaGASPCharacter::RegisterStimuliSources()

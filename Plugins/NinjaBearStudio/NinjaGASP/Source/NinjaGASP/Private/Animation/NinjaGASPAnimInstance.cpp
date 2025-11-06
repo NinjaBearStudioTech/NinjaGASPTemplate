@@ -5,6 +5,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
+#include "Interfaces/PlayerCameraModeInterface.h"
 #include "Kismet/KismetMathLibrary.h"
 
 #pragma region Proxy
@@ -32,23 +33,31 @@ void FNinjaGASPAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstanc
 
 UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 {
-	RootTransform = FTransform::Identity;
-	CharacterTransform = FTransform::Identity;
-	CharacterTransformOnLastFrame = FTransform::Identity;
-	Acceleration = FVector::ZeroVector;
-	AccelerationOnLastFrame = FVector::ZeroVector;
+	bHasVelocity = false;
+	bJustLanded = false;
+	bHasAcceleration = false;
 	AccelerationAmount = 0.f;
 	MaximumAcceleration = 0.f;
 	MaximumBrakingDeceleration = 0.f;
-	bHasAcceleration = false;
+	Speed2D = 0.f;
+	MaximumSpeed = 0.f;
 	Velocity = FVector::ZeroVector;
 	VelocityOnLastFrame = FVector::ZeroVector;
 	VelocityAcceleration = FVector::ZeroVector;
 	LastNonZeroVelocity = FVector::ZeroVector;
-	Speed2D = 0.f;
-	MaximumSpeed = 0.f;
-	bHasVelocity = false;
+	LandedVelocity = FVector::ZeroVector;
+	Acceleration = FVector::ZeroVector;
+	AccelerationOnLastFrame = FVector::ZeroVector;
+	RootTransform = FTransform::Identity;
+	CharacterTransform = FTransform::Identity;
+	CharacterTransformOnLastFrame = FTransform::Identity;
+
+	bInRagdoll = false;
+	FlailRate = 0.f;
+	
+	bIsAiming = false;
 	AimOffset = FVector2D::ZeroVector;
+	CameraMode = EPlayerCameraMode::Balanced;
 
 	MovementMode = ECharacterMovementMode::OnGround;
 	MovementModeOnLastFrame = ECharacterMovementMode::OnGround;
@@ -109,8 +118,10 @@ void UNinjaGASPAnimInstance::NativeThreadSafeUpdateAnimation(const float DeltaSe
 	if (!Proxy.HasValidData()) return;
 
 	UpdateEssentialValues(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+	UpdateAiming(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateTrajectory(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateStates(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+	UpdateRagdoll(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 }
 
 void UNinjaGASPAnimInstance::UpdateEssentialValues_Implementation(const float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
@@ -131,13 +142,15 @@ void UNinjaGASPAnimInstance::UpdateEssentialValues_Implementation(const float De
 	Speed2D = Velocity.Size2D();
 	MaximumSpeed = CharacterMovement->GetMaxSpeed();
 	VelocityAcceleration = (Velocity - VelocityOnLastFrame) / FMath::Max(DeltaSeconds, VelocityAccelerationThreshold);
+	
 	bHasVelocity = Speed2D > SpeedThreshold;
 	if (bHasVelocity)
 	{
 		LastNonZeroVelocity = Velocity;
 	}
 
-	AimOffset = CalculateAimOffset(CharacterOwner, CharacterMovement);
+	LandedVelocity = IAdvancedCharacterMovementInterface::Execute_GetLandVelocity(CharacterOwner);
+	bJustLanded = IAdvancedCharacterMovementInterface::Execute_HasJustLanded(CharacterOwner);
 }
 
 FTransform UNinjaGASPAnimInstance::CalculateRootTransform_Implementation(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const
@@ -162,6 +175,17 @@ FTransform UNinjaGASPAnimInstance::CalculateRootTransform_Implementation(const A
 FAnimNodeReference UNinjaGASPAnimInstance::GetOffsetRootNode_Implementation() const
 {
 	return FAnimNodeReference();
+}
+
+void UNinjaGASPAnimInstance::UpdateAiming_Implementation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
+{
+	bIsAiming = IAdvancedCharacterMovementInterface::Execute_IsAiming(CharacterOwner);
+	AimOffset = CalculateAimOffset(CharacterOwner, CharacterMovement);
+
+	if (CharacterOwner->Implements<UPlayerCameraModeInterface>())
+	{
+		CameraMode = IPlayerCameraModeInterface::Execute_GetCameraMode(CharacterOwner);
+	}
 }
 
 FVector2D UNinjaGASPAnimInstance::CalculateAimOffset_Implementation(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const
@@ -261,4 +285,12 @@ bool UNinjaGASPAnimInstance::IsMoving_Implementation() const
 	return HasMovement(bUseVelocityToDetermineMovement, Velocity, VelocityMovementTolerance)
 		&& HasMovement(bUseTrajectoryFutureVelocityToDetermineMovement, TrajectoryFutureVelocity, TrajectoryFutureVelocityMovementTolerance)
 		&& HasMovement(bUseAccelerationToDetermineMovement, Acceleration, AccelerationMovementTolerance);
+}
+
+void UNinjaGASPAnimInstance::UpdateRagdoll_Implementation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
+{
+	bInRagdoll = IAdvancedCharacterMovementInterface::Execute_InRagdoll(CharacterOwner);
+
+	const float RawFlailRate = CharacterOwner->GetMesh()->GetPhysicsLinearVelocity().Size();
+	FlailRate = UKismetMathLibrary::MapRangeClamped(RawFlailRate, 0.f, 1000.f, 0.f, 1.f);
 }
