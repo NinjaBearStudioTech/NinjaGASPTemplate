@@ -2,10 +2,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimExecutionContext.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeReference.h"
 #include "Animation/TrajectoryTypes.h"
+#include "PoseSearch/MotionMatchingAnimNodeLibrary.h"
+#include "PoseSearch/PoseSearchLibrary.h"
 #include "PoseSearch/PoseSearchTrajectoryLibrary.h"
 #include "Types/EAnimationStateMachineState.h"
 #include "Types/ECharacterGait.h"
@@ -18,6 +21,8 @@
 #include "Types/FAnimationStateMachineControlFlags.h"
 #include "NinjaGASPAnimInstance.generated.h"
 
+class UChooserTable;
+class UPoseSearchDatabase;
 class ACharacter;
 class UCharacterMovementComponent;
 
@@ -108,6 +113,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	bool bJustLanded;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	int32 MotionMatchingDatabaseLOD;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	float AccelerationAmount;
@@ -156,6 +164,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	TArray<FName> CurrentDatabaseTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	TObjectPtr<const UPoseSearchDatabase> CurrentSelectedDatabase;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ragdoll")
 	bool bInRagdoll;
@@ -300,6 +311,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	FName AimOffsetCurveName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	TObjectPtr<UChooserTable> PoseSearchDatabase;
 	
 	UNinjaGASPAnimInstance();
 
@@ -385,6 +399,12 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool IsPivoting() const;
+
+	/**
+	 * Determines whether motion matching will force a blend into a new database or wait until it finds a better match.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	EPoseSearchInterruptMode GetMotionMatchingInterruptMode() const;
 	
 protected:
 
@@ -427,6 +447,20 @@ protected:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateRagdoll(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+
+	/**
+	 * Updates motion matching data, selecting the database using chooser tables.
+	 * To extend this functionality, please look into "HandleMotionMatching".
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ninja Locomotion|Anim Node Functions", meta = (BlueprintThreadSafe))
+	void UpdateMotionMatching(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+	
+	/**
+	 * Updates motion matching data, after a node has been selected in animation.
+	 * To extend this functionality, please look into "HandleMotionMatchingPostSelection".
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ninja Locomotion|Anim Node Functions", meta = (BlueprintThreadSafe))
+	void UpdateMotionMatchingPostSelection(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
 
 	/**
 	 * Evaluates the requested state and then selects and updates the data to run it.
@@ -483,5 +517,19 @@ protected:
 	 */
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	bool IsPivotingInStateMachine() const;
+
+	/**
+	 * Handles a motion matching update, executed **during** animation selection.
+	 * This is usually called by "UpdateMotionMatching". 
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	void HandleMotionMatching(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef);
+	
+	/**
+	 * Handles a motion matching update, executed **post** animation selection.
+	 * This is usually called by "UpdateMotionMatchingPostSelection". 
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	void HandleMotionMatchingPostSelection(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef);
 	
 };

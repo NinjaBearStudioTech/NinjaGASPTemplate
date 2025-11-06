@@ -2,11 +2,16 @@
 #include "Animation/NinjaGASPAnimInstance.h"
 
 #include "AnimationWarpingLibrary.h"
+#include "ChooserFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
 #include "Interfaces/PlayerCameraModeInterface.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "PoseSearch/AnimNode_MotionMatching.h"
+#include "PoseSearch/MotionMatchingAnimNodeLibrary.h"
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearch/PoseSearchResult.h"
 
 #pragma region Proxy
 // Begin Proxy implementation -------------------------
@@ -36,6 +41,7 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	bHasVelocity = false;
 	bJustLanded = false;
 	bHasAcceleration = false;
+	MotionMatchingDatabaseLOD = 0;
 	AccelerationAmount = 0.f;
 	MaximumAcceleration = 0.f;
 	MaximumBrakingDeceleration = 0.f;
@@ -51,6 +57,7 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	RootTransform = FTransform::Identity;
 	CharacterTransform = FTransform::Identity;
 	CharacterTransformOnLastFrame = FTransform::Identity;
+	CurrentSelectedDatabase = nullptr;
 
 	bInRagdoll = false;
 	FlailRate = 0.f;
@@ -307,6 +314,52 @@ void UNinjaGASPAnimInstance::UpdateRagdoll_Implementation(float DeltaSeconds, co
 	FlailRate = UKismetMathLibrary::MapRangeClamped(RawFlailRate, 0.f, 1000.f, 0.f, 1.f);
 }
 
+void UNinjaGASPAnimInstance::UpdateMotionMatching(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef = UMotionMatchingAnimNodeLibrary::ConvertToMotionMatchingNode(Node, Result);
+	if (Result == EAnimNodeReferenceConversionResult::Succeeded)
+	{
+		HandleMotionMatching(MotionMatchingNodeRef);
+	}	
+}
+
+void UNinjaGASPAnimInstance::HandleMotionMatching_Implementation(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef)
+{
+	UPoseSearchDatabase* Database = Cast<UPoseSearchDatabase>(UChooserFunctionLibrary::EvaluateChooser(this, PoseSearchDatabase, UPoseSearchDatabase::StaticClass()));
+	if (IsValid(Database))
+	{
+		const EPoseSearchInterruptMode InterruptMode = GetMotionMatchingInterruptMode();
+		UMotionMatchingAnimNodeLibrary::SetDatabaseToSearch(MotionMatchingNodeRef, Database, InterruptMode);
+	}
+}
+
+void UNinjaGASPAnimInstance::UpdateMotionMatchingPostSelection(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	EAnimNodeReferenceConversionResult Result;
+	const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef = UMotionMatchingAnimNodeLibrary::ConvertToMotionMatchingNode(Node, Result);
+	if (Result == EAnimNodeReferenceConversionResult::Succeeded)
+	{
+		HandleMotionMatchingPostSelection(MotionMatchingNodeRef);
+	}
+}
+
+void UNinjaGASPAnimInstance::HandleMotionMatchingPostSelection_Implementation(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef)
+{
+	FPoseSearchBlueprintResult Result;
+	bool bIsValidSearchResult;
+	
+	UMotionMatchingAnimNodeLibrary::GetMotionMatchingSearchResult(MotionMatchingNodeRef, Result, bIsValidSearchResult);
+	if (bIsValidSearchResult)
+	{
+		CurrentSelectedDatabase = Result.SelectedDatabase;
+		if (IsValid(CurrentSelectedDatabase))
+		{
+			CurrentDatabaseTags = CurrentSelectedDatabase->Tags;
+		}
+	}
+}
+
 bool UNinjaGASPAnimInstance::IsStartingToMove() const
 {
 	static const FName PivotsTag = FName("Pivots");
@@ -370,6 +423,24 @@ bool UNinjaGASPAnimInstance::IsPivoting() const
 	}
 
 	return bUseStateMachine ? IsPivotingInStateMachine() : IsPivotingInMotionMatching(); 
+}
+
+EPoseSearchInterruptMode UNinjaGASPAnimInstance::GetMotionMatchingInterruptMode_Implementation() const
+{
+	if (ChangedMovementMode())
+	{
+		return EPoseSearchInterruptMode::InterruptOnDatabaseChange;
+	}
+
+	if (MovementMode == ECharacterMovementMode::OnGround)
+	{
+		if (ChangedMovementState() || ChangedGait() || ChangedStance())
+		{
+			return EPoseSearchInterruptMode::InterruptOnDatabaseChange;
+		}
+	}
+
+	return EPoseSearchInterruptMode::DoNotInterrupt;
 }
 
 bool UNinjaGASPAnimInstance::IsPivotingInMotionMatching_Implementation() const
