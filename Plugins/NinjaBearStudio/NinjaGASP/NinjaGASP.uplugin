@@ -27,6 +27,10 @@
         {
             "Name": "AnimationWarping",
             "Enabled": true
+        },
+        {
+            "Name": "Chooser",
+            "Enabled": true
         },        
         {
             "Name": "GameplayAbilities",

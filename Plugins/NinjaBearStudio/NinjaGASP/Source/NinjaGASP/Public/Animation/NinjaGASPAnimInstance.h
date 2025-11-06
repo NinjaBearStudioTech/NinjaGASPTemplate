@@ -7,12 +7,15 @@
 #include "Animation/AnimNodeReference.h"
 #include "Animation/TrajectoryTypes.h"
 #include "PoseSearch/PoseSearchTrajectoryLibrary.h"
+#include "Types/EAnimationStateMachineState.h"
 #include "Types/ECharacterGait.h"
 #include "Types/ECharacterMovementMode.h"
 #include "Types/ECharacterMovementState.h"
 #include "Types/ECharacterRotationMode.h"
 #include "Types/ECharacterStance.h"
 #include "Types/EPlayerCameraMode.h"
+#include "Types/FAnimationBlendStackInputs.h"
+#include "Types/FAnimationStateMachineControlFlags.h"
 #include "NinjaGASPAnimInstance.generated.h"
 
 class ACharacter;
@@ -98,20 +101,14 @@ class NINJAGASP_API UNinjaGASPAnimInstance : public UAnimInstance
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	FTransform RootTransform;
+	bool bHasVelocity;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	FTransform CharacterTransform;
+	bool bHasAcceleration;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	FTransform CharacterTransformOnLastFrame;
+	bool bJustLanded;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	FVector Acceleration;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	FVector AccelerationOnLastFrame;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	float AccelerationAmount;
 
@@ -120,10 +117,19 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	float MaximumBrakingDeceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	float Speed2D;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	float MaximumSpeed;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	bool bHasAcceleration;
+	FVector Acceleration;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	FVector AccelerationOnLastFrame;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	FVector Velocity;
 
@@ -140,17 +146,17 @@ public:
 	FVector LandedVelocity;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	float Speed2D;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	float MaximumSpeed;
+	FTransform RootTransform;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	bool bHasVelocity;
+	FTransform CharacterTransform;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
-	bool bJustLanded;
+	FTransform CharacterTransformOnLastFrame;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	TArray<FName> CurrentDatabaseTags;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ragdoll")
 	bool bInRagdoll;
 
@@ -219,6 +225,24 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trajectory")
 	FVector TrajectoryFutureVelocity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine")
+	bool bUseStateMachine;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
+	EAnimationStateMachineState StateMachineState;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
+	FAnimationBlendStackInputs BlendStackInputs;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
+	FAnimationBlendStackInputs PreviousBlendStackInputs;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
+	FAnimationStateMachineControlFlags AnimationControlFlags;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
+	float SearchCost;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	bool bUseVelocityToDetermineMovement = false;
@@ -233,11 +257,26 @@ public:
 	float SpeedThreshold;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	float TurnInPlaceYawThreshold;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	float SpinTransitionYawThreshold;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	float SpinTransitionSpeedThreshold;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	float VelocityAccelerationThreshold;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
-	float VelocityMovementTolerance;
+	float HeavyLandSpeedThreshold;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	float TraverseYawThreshold;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	float VelocityMovementTolerance;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	float TrajectoryFutureVelocityMovementTolerance;
 
@@ -299,6 +338,53 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedStance() const { return Stance != StanceOnLastFrame; }
+
+	/**
+	 * Informs if the character is starting to move, based on velocity and trajectory future velocity.
+	 * It also takes into consideration if there's an ongoing pivot animation.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool IsStartingToMove() const;
+	
+	/**
+	 * Determines if the character should turn in place.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool ShouldTurnInPlace() const;
+
+	/**
+	 * Allows a spin transition animation to play when the root bone rotation and character's capsule rotations are very different while moving.
+	 * Spin transitions are locomotion animations that rotate the character while moving in a fixed world direction, and are useful when switching rotation modes. 
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool ShouldSpinTransition() const;
+	
+	/**
+	 * Determines if the character landed below the heavy threshold (light land).
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool HasLandedLight() const { return bJustLanded && FMath::Abs(LandedVelocity.Z) < FMath::Abs(HeavyLandSpeedThreshold); }
+
+	/**
+	 * Determines if the character landed above or at the heavy threshold (heavy land).
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool HasLandedHeavy() const { return bJustLanded && FMath::Abs(LandedVelocity.Z) >= FMath::Abs(HeavyLandSpeedThreshold); }
+
+	/**
+	 * Evaluates/selects the tail end of traversal animations when blending back to locomotion.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool JustTraversed() const;
+
+	/**
+	 * Checks if the character is pivoting.
+	 * 
+	 * This supports different checks for Motion Matching and State Machine modes. You can modify
+	 * the logic for each check individually, by extending their specific pivoting functions. 
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool IsPivoting() const;
 	
 protected:
 
@@ -315,62 +401,87 @@ protected:
 	/**
 	 * Updates all trajectory values and collisions.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateTrajectory(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 
 	/**
 	 * Updates all essential values, using the character and movement component.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateEssentialValues(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 
 	/**
 	 * Updates all state enums that are used internally and by chooser tables.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateStates(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 
 	/**
 	 * Updates the aiming state and aim offset vector.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateAiming(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 
 	/**
 	 * Updates details about the ragdoll state.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateRagdoll(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+
+	/**
+	 * Evaluates the requested state and then selects and updates the data to run it.
+	 * Meant to be called from "On State Entry" functions.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	void SetBlendStackAnimFromChooser(EAnimationStateMachineState NewState, bool bForceBlend);
 	
 	/**
 	 * Provides an animation node that indicates the offset root transform.
 	 * Usually, this is the "Offset Root Bone" node from the Anim Graph.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	FAnimNodeReference GetOffsetRootNode() const ;
+
+	/**
+	 * Gets the turn angle expected from the current trajectory.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetTrajectoryTurnAngle() const;
 	
 	/**
 	 * Calculates the Root Transform for the character.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	FTransform CalculateRootTransform(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const;
 
 	/**
 	 * Calculates the aim offset based on current values.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	FVector2D CalculateAimOffset(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const;
 	
 	/**
 	 * Converts the CMC Movement Mode to the custom movement mode enum.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	ECharacterMovementMode ConvertCharacterMovementMode(const UCharacterMovementComponent* CharacterMovement) const;
 
 	/**
 	 * Converts CMC rotation flags to the custom rotation mode enum.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	ECharacterRotationMode ConvertCharacterRotationMode(const UCharacterMovementComponent* CharacterMovement) const;
+
+	/**
+	 * Checks if the character is pivoting, considering Motion Matching conditions.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	bool IsPivotingInMotionMatching() const;
+
+	/**
+	 * Checks if the character is pivoting, considering State Machine conditions.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	bool IsPivotingInStateMachine() const;
 	
 };

@@ -11,6 +11,7 @@ public class NinjaGASP : ModuleRules
 		{
 			// Unreal Engine Modules
 			"AIModule",
+			"Chooser",
 			"Core", 
 			"InputCore", 
 			"GameplayAbilities",

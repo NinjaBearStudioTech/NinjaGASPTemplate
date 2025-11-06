@@ -90,7 +90,12 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	bUseTrajectoryFutureVelocityToDetermineMovement = true;
 	bUseAccelerationToDetermineMovement = true;
 	SpeedThreshold = 5.f;
+	TurnInPlaceYawThreshold = 50.f;
+	SpinTransitionYawThreshold = 130.f;
+	SpinTransitionSpeedThreshold = 150.f;
 	VelocityAccelerationThreshold = 0.001f;
+	TraverseYawThreshold = 50.;
+	HeavyLandSpeedThreshold = 700.f;
 	VelocityMovementTolerance = 0.1f;
 	TrajectoryFutureVelocityMovementTolerance = 10.f;
 	AccelerationMovementTolerance = 0.f;
@@ -100,6 +105,13 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	CurrentTrajectoryTimeSample = FVector2D(0.f, 0.2f);
 	FutureTrajectoryTimeSample = FVector2D(0.4f, 0.5f);
 	AimOffsetCurveName = TEXT("Disable_AO");
+
+	bUseStateMachine = false;
+	StateMachineState = EAnimationStateMachineState::IdleLoop;
+	BlendStackInputs = FAnimationBlendStackInputs();
+	PreviousBlendStackInputs = FAnimationBlendStackInputs();
+	AnimationControlFlags = FAnimationStateMachineControlFlags();
+	SearchCost = 0.f;
 }
 
 FAnimInstanceProxy* UNinjaGASPAnimInstance::CreateAnimInstanceProxy()
@@ -293,4 +305,159 @@ void UNinjaGASPAnimInstance::UpdateRagdoll_Implementation(float DeltaSeconds, co
 
 	const float RawFlailRate = CharacterOwner->GetMesh()->GetPhysicsLinearVelocity().Size();
 	FlailRate = UKismetMathLibrary::MapRangeClamped(RawFlailRate, 0.f, 1000.f, 0.f, 1.f);
+}
+
+bool UNinjaGASPAnimInstance::IsStartingToMove() const
+{
+	static const FName PivotsTag = FName("Pivots");
+
+	const bool bTendsToIncreaseVelocity = TrajectoryFutureVelocity.Size2D() >= Velocity.Size2D() + 100;
+	return IsMoving() && bTendsToIncreaseVelocity && !CurrentDatabaseTags.Contains(PivotsTag);
+}
+
+bool UNinjaGASPAnimInstance::ShouldTurnInPlace_Implementation() const
+{
+	const float NormalizedYaw = UKismetMathLibrary::NormalizedDeltaRotator(CharacterTransform.Rotator(), RootTransform.Rotator()).Yaw;
+	if (FMath::Abs(NormalizedYaw) >= TurnInPlaceYawThreshold)
+	{
+		const bool bInFirstPerson = CameraMode == EPlayerCameraMode::FirstPerson;
+		const bool bHasValidMovementState = MovementState == ECharacterMovementState::Idle && MovementStateOnLastFrame == ECharacterMovementState::Moving;
+		
+		if (bIsAiming || bInFirstPerson ||bHasValidMovementState) 
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UNinjaGASPAnimInstance::ShouldSpinTransition_Implementation() const
+{
+	static const FName PivotsTag = FName("Pivots");
+	
+	const float NormalizedYaw = UKismetMathLibrary::NormalizedDeltaRotator(CharacterTransform.Rotator(), RootTransform.Rotator()).Yaw;
+	return FMath::Abs(NormalizedYaw) >= SpinTransitionYawThreshold && Speed2D >= SpinTransitionSpeedThreshold && !CurrentDatabaseTags.Contains(PivotsTag);
+}
+
+bool UNinjaGASPAnimInstance::JustTraversed() const
+{
+	static const FName DefaultSlot = FName("DefaultSlot");
+	const bool bDefaultSlotActive = IsSlotActive(DefaultSlot);
+	
+	static const FName MovingTraversal = FName("MovingTraversal");
+	const bool bHasMovingTraversalCurveValue = GetCurveValue(MovingTraversal) > 0.f;
+
+	const float TrajectoryTurnAngle = GetTrajectoryTurnAngle();
+	const bool TurnAngleBelowThreshold = TrajectoryTurnAngle <= TraverseYawThreshold; 
+
+	return !bDefaultSlotActive && bHasMovingTraversalCurveValue && TurnAngleBelowThreshold;
+}
+
+float UNinjaGASPAnimInstance::GetTrajectoryTurnAngle() const
+{
+	const FRotator FutureVelocityRotator = TrajectoryFutureVelocity.ToOrientationRotator();
+	const FRotator VelocityRotator = Velocity.ToOrientationRotator();
+	return UKismetMathLibrary::NormalizedDeltaRotator(FutureVelocityRotator, VelocityRotator).Yaw;
+}
+
+bool UNinjaGASPAnimInstance::IsPivoting() const
+{
+	if (!IsMoving())
+	{
+		// If not moving, don't bother wasting cpu checking for conditions.
+		return false;
+	}
+
+	return bUseStateMachine ? IsPivotingInStateMachine() : IsPivotingInMotionMatching(); 
+}
+
+bool UNinjaGASPAnimInstance::IsPivotingInMotionMatching_Implementation() const
+{
+	float AngleThreshold = 0.f;
+	switch (RotationMode)
+	{
+		case ECharacterRotationMode::OrientToMovement:
+			AngleThreshold = 45.f;
+			break;
+		case ECharacterRotationMode::Strafe:
+			AngleThreshold = 30.f;
+			break;
+	}
+	
+	const float TrajectoryTurnAngle = GetTrajectoryTurnAngle();
+	return FMath::Abs(TrajectoryTurnAngle) >= AngleThreshold;
+}
+
+bool UNinjaGASPAnimInstance::IsPivotingInStateMachine_Implementation() const
+{
+	const float TurnAngle = GetTrajectoryTurnAngle();
+
+	auto MapRangeClamped = [](const float Value, const float InMin, const float InMax, const float OutMin, const float OutMax)
+	{
+		return FMath::GetMappedRangeValueClamped(
+			FVector2D(InMin, InMax),
+			FVector2D(OutMin, OutMax),
+			Value);
+	};
+
+	const bool bWalkSpeed = Speed2D >= 50.f && Speed2D <= 200.f;
+	const bool bRunSpeed = Speed2D >= 200.f && Speed2D <= 550.f;
+	const bool bSprintSpeed = Speed2D >= 200.f && Speed2D <= 700.f;
+	
+	const float WalkAngleThreshold = MapRangeClamped(Speed2D, 150.f, 200.f, 70.f, 60.f);
+	const float RunAngleThreshold = MapRangeClamped(Speed2D, 300.f, 500.f, 70.f, 60.f);
+	const float SprintAngleThreshold = MapRangeClamped(Speed2D, 300.f, 700.f, 60.f, 50.f);
+
+	float AngleThreshold = 0.f;
+	if (Stance == ECharacterStance::Crouch)
+	{
+		AngleThreshold = 65.f;
+	}
+	else switch (Gait)
+	{
+		case ECharacterGait::Walk:
+			AngleThreshold = WalkAngleThreshold;
+			break;
+		case ECharacterGait::Run:
+			AngleThreshold = RunAngleThreshold;
+			break;
+		case ECharacterGait::Sprint:
+			AngleThreshold = SprintAngleThreshold;
+			break;
+		default:
+			AngleThreshold = WalkAngleThreshold;
+			break;
+	}
+
+	bool bSpeedInRangeForGait = false;
+	switch (Gait)
+	{
+		case ECharacterGait::Walk:
+			bSpeedInRangeForGait = bWalkSpeed;
+			break;
+		case ECharacterGait::Run:
+			bSpeedInRangeForGait = bRunSpeed;
+			break;
+		case ECharacterGait::Sprint:
+			bSpeedInRangeForGait = bSprintSpeed;
+			break;
+		default:
+			bSpeedInRangeForGait = false;
+			break;
+	}
+
+	const bool bAngleCondition = FMath::Abs(TurnAngle) >= AngleThreshold;
+	const bool bSpeedCondition = Stance == ECharacterStance::Crouch ? bWalkSpeed : bSpeedInRangeForGait;
+	
+	return bAngleCondition && bSpeedCondition;
+}
+
+void UNinjaGASPAnimInstance::SetBlendStackAnimFromChooser_Implementation(const EAnimationStateMachineState NewState, const bool bForceBlend)
+{
+	StateMachineState = NewState;
+	PreviousBlendStackInputs = BlendStackInputs;
+	AnimationControlFlags.Reset();
+	
+	// TODO continue with the chooser part.
 }
