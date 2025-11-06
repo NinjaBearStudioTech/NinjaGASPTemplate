@@ -38,13 +38,17 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	Acceleration = FVector::ZeroVector;
 	AccelerationOnLastFrame = FVector::ZeroVector;
 	AccelerationAmount = 0.f;
+	MaximumAcceleration = 0.f;
+	MaximumBrakingDeceleration = 0.f;
 	bHasAcceleration = false;
 	Velocity = FVector::ZeroVector;
 	VelocityOnLastFrame = FVector::ZeroVector;
 	VelocityAcceleration = FVector::ZeroVector;
 	LastNonZeroVelocity = FVector::ZeroVector;
 	Speed2D = 0.f;
+	MaximumSpeed = 0.f;
 	bHasVelocity = false;
+	AimOffset = FVector2D::ZeroVector;
 
 	MovementMode = ECharacterMovementMode::OnGround;
 	MovementModeOnLastFrame = ECharacterMovementMode::OnGround;
@@ -83,10 +87,10 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	AccelerationMovementTolerance = 0.f;
 	TransformTrajectorySettings = FPoseSearchGenerationSettings();
 	TrajectoryCollisionTraceChannel = TraceTypeQuery1;
-
 	PastTrajectoryTimeSample = FVector2D(-0.3f, -0.2f);
 	CurrentTrajectoryTimeSample = FVector2D(0.f, 0.2f);
-	FutureTrajectoryTimeSample = FVector2D(0.4f, 0.5f);	
+	FutureTrajectoryTimeSample = FVector2D(0.4f, 0.5f);
+	AimOffsetCurveName = TEXT("Disable_AO");
 }
 
 FAnimInstanceProxy* UNinjaGASPAnimInstance::CreateAnimInstanceProxy()
@@ -107,6 +111,68 @@ void UNinjaGASPAnimInstance::NativeThreadSafeUpdateAnimation(const float DeltaSe
 	UpdateEssentialValues(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateTrajectory(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateStates(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+}
+
+void UNinjaGASPAnimInstance::UpdateEssentialValues_Implementation(const float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
+{
+	CharacterTransformOnLastFrame = CharacterTransform;
+	CharacterTransform = CharacterOwner->GetActorTransform();
+	RootTransform = CalculateRootTransform(CharacterOwner, CharacterMovement);
+
+	AccelerationOnLastFrame = Acceleration;
+	Acceleration = CharacterMovement->GetCurrentAcceleration();
+	MaximumAcceleration = CharacterMovement->GetMaxAcceleration();
+	MaximumBrakingDeceleration = CharacterMovement->GetMaxBrakingDeceleration();
+	AccelerationAmount = Acceleration.Size() / CharacterMovement->GetMaxAcceleration();
+	bHasAcceleration = AccelerationAmount > 0.f; 
+
+	VelocityOnLastFrame = Velocity;
+	Velocity = CharacterMovement->Velocity;
+	Speed2D = Velocity.Size2D();
+	MaximumSpeed = CharacterMovement->GetMaxSpeed();
+	VelocityAcceleration = (Velocity - VelocityOnLastFrame) / FMath::Max(DeltaSeconds, VelocityAccelerationThreshold);
+	bHasVelocity = Speed2D > SpeedThreshold;
+	if (bHasVelocity)
+	{
+		LastNonZeroVelocity = Velocity;
+	}
+
+	AimOffset = CalculateAimOffset(CharacterOwner, CharacterMovement);
+}
+
+FTransform UNinjaGASPAnimInstance::CalculateRootTransform_Implementation(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const
+{
+	const FAnimNodeReference Node = GetOffsetRootNode();
+	if (!Node.GetAnimNodePtr<FAnimNode_Base>())
+	{
+		// We don't have a valid node, let's use the actor transform.
+		return CharacterOwner->GetActorTransform();	
+	}
+	
+	const FTransform OffsetRootTransform = UAnimationWarpingLibrary::GetOffsetRootTransform(Node);
+	const FRotator OffsetRootRotator = FRotator(OffsetRootTransform.Rotator().Pitch, OffsetRootTransform.Rotator().Yaw + 90.f, OffsetRootTransform.Rotator().Roll);
+		
+	FTransform Result;
+	Result.SetLocation(OffsetRootTransform.GetLocation());
+	Result.SetRotation(OffsetRootRotator.Quaternion());
+	Result.SetScale3D(FVector::OneVector);
+	return Result;
+}
+
+FAnimNodeReference UNinjaGASPAnimInstance::GetOffsetRootNode_Implementation() const
+{
+	return FAnimNodeReference();
+}
+
+FVector2D UNinjaGASPAnimInstance::CalculateAimOffset_Implementation(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const
+{
+	const FRotator AimRotation = CharacterOwner->IsLocallyControlled() ? CharacterOwner->GetControlRotation() : CharacterOwner->GetBaseAimRotation();
+	const FRotator RootRotation = RootTransform.Rotator();
+	const FRotator DeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(AimRotation, RootRotation);
+
+	const float Alpha = GetCurveValue(AimOffsetCurveName);
+	const FVector LerpVector = UKismetMathLibrary::VLerp(FVector(DeltaRotation.Yaw, DeltaRotation.Pitch, 0.f), FVector::ZeroVector, Alpha);
+	return FVector2D(LerpVector.X, LerpVector.Y);
 }
 
 void UNinjaGASPAnimInstance::UpdateTrajectory_Implementation(const float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
@@ -138,52 +204,6 @@ PRAGMA_DISABLE_EXPERIMENTAL_WARNINGS
 	UPoseSearchTrajectoryLibrary::GetTransformTrajectoryVelocity(Trajectory, FutureTrajectoryTimeSample.X, FutureTrajectoryTimeSample.Y, TrajectoryFutureVelocity);
 	
 PRAGMA_ENABLE_EXPERIMENTAL_WARNINGS
-}
-
-void UNinjaGASPAnimInstance::UpdateEssentialValues_Implementation(const float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
-{
-	CharacterTransformOnLastFrame = CharacterTransform;
-	CharacterTransform = CharacterOwner->GetActorTransform();
-	RootTransform = CalculateRootTransform(CharacterOwner, CharacterMovement);
-
-	AccelerationOnLastFrame = Acceleration;
-	Acceleration = CharacterMovement->GetCurrentAcceleration();
-	AccelerationAmount = Acceleration.Size() / CharacterMovement->GetMaxAcceleration();
-	bHasAcceleration = AccelerationAmount > 0.f; 
-
-	VelocityOnLastFrame = Velocity;
-	Velocity = CharacterMovement->Velocity;
-	Speed2D = Velocity.Size2D();
-	VelocityAcceleration = (Velocity - VelocityOnLastFrame) / FMath::Max(DeltaSeconds, VelocityAccelerationThreshold);
-	bHasVelocity = Speed2D > SpeedThreshold;
-	if (bHasVelocity)
-	{
-		LastNonZeroVelocity = Velocity;
-	}
-}
-
-FTransform UNinjaGASPAnimInstance::CalculateRootTransform_Implementation(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const
-{
-	const FAnimNodeReference Node = GetOffsetRootNode();
-	if (!Node.GetAnimNodePtr<FAnimNode_Base>())
-	{
-		// We don't have a valid node, let's use the actor transform.
-		return CharacterOwner->GetActorTransform();	
-	}
-	
-	const FTransform OffsetRootTransform = UAnimationWarpingLibrary::GetOffsetRootTransform(Node);
-	const FRotator OffsetRootRotator = FRotator(OffsetRootTransform.Rotator().Pitch, OffsetRootTransform.Rotator().Yaw + 90.f, OffsetRootTransform.Rotator().Roll);
-		
-	FTransform Result;
-	Result.SetLocation(OffsetRootTransform.GetLocation());
-	Result.SetRotation(OffsetRootRotator.Quaternion());
-	Result.SetScale3D(FVector::OneVector);
-	return Result;
-}
-
-FAnimNodeReference UNinjaGASPAnimInstance::GetOffsetRootNode_Implementation() const
-{
-	return FAnimNodeReference();
 }
 
 void UNinjaGASPAnimInstance::UpdateStates_Implementation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)

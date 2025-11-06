@@ -115,6 +115,12 @@ public:
 	float AccelerationAmount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	float MaximumAcceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	float MaximumBrakingDeceleration;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	bool bHasAcceleration;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
@@ -133,7 +139,13 @@ public:
 	float Speed2D;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	float MaximumSpeed;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	bool bHasVelocity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	FVector2D AimOffset;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "States")
 	ECharacterMovementMode MovementMode;
@@ -228,6 +240,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	FVector2D FutureTrajectoryTimeSample;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	FName AimOffsetCurveName;
+	
 	UNinjaGASPAnimInstance();
 
 	/**
@@ -300,25 +315,31 @@ protected:
 	 * Provides an animation node that indicates the offset root transform.
 	 * Usually, this is the "Offset Root Bone" node from the Anim Graph.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	FAnimNodeReference GetOffsetRootNode() const ;
 	
 	/**
 	 * Calculates the Root Transform for the character.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	FTransform CalculateRootTransform(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const;
 
 	/**
+	 * Calculates the aim offset based on current values.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	FVector2D CalculateAimOffset(const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement) const;
+	
+	/**
 	 * Converts the CMC Movement Mode to the custom movement mode enum.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	ECharacterMovementMode ConvertCharacterMovementMode(const UCharacterMovementComponent* CharacterMovement) const;
 
 	/**
 	 * Converts CMC rotation flags to the custom rotation mode enum.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	ECharacterRotationMode ConvertCharacterRotationMode(const UCharacterMovementComponent* CharacterMovement) const;
 	
 };
