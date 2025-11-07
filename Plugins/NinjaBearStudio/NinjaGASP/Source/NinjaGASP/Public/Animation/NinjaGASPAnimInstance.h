@@ -7,6 +7,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeReference.h"
 #include "Animation/TrajectoryTypes.h"
+#include "BoneControllers/AnimNode_OffsetRootBone.h"
+#include "BoneControllers/AnimNode_OrientationWarping.h"
 #include "PoseSearch/MotionMatchingAnimNodeLibrary.h"
 #include "PoseSearch/PoseSearchLibrary.h"
 #include "PoseSearch/PoseSearchTrajectoryLibrary.h"
@@ -110,6 +112,9 @@ class NINJAGASP_API UNinjaGASPAnimInstance : public UAnimInstance
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
+	bool bOffsetRootBoneEnabled;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	bool bHasVelocity;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
@@ -171,6 +176,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	TObjectPtr<const UPoseSearchDatabase> CurrentSelectedDatabase;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Root Offset")
+	float OffsetRootTranslationRadius;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ragdoll")
 	bool bInRagdoll;
@@ -469,6 +477,12 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ShouldEnableAimOffset() const;
+
+	/**
+	 * Provides the velocity on Z axis, when landing.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetLandVelocity() const { return LandedVelocity.Z; }
 	
 	/**
 	 * Provides the Yaw part of the Aim Offset, considering the rotation mode.
@@ -485,13 +499,50 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	float GetStrafeYawRotationOffset() const;
+
+	/**
+	 * Provides the blend time for a Motion Matching node, based on current and previous states.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetMotionMatchingBlendTime() const;
+
+	/**
+	 * Controls the speed at which the Root Offset node can interpolate the root bone's translation
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetOffsetRootTranslationHalfLife() const;
+
+	/**
+	 * Retrieves the Offset Root Node's "Max Translation Error" radius from a console variable.
+	 * This makes it easy to tune while playing.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetOffsetRootTranslationRadius() const { return OffsetRootTranslationRadius; }
+	
+	/**
+	 * Determines the Offset Root Rotation mode based on internal state.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	EOffsetRootBoneMode GetOffsetRootRotationMode() const;
+
+	/**
+	 * Determines the Offset Root Translation mode.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	EOffsetRootBoneMode GetOffsetRootTranslationMode() const;
+
+	/**
+	 * Defines the Orientation Warping Space, based on the root bone offset state.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	EOrientationWarpingSpace GetOrientationWarpingSpace() const;
 	
 	/**
 	 * Determines whether motion matching will force a blend into a new database or wait until it finds a better match.
 	 */
-	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	EPoseSearchInterruptMode GetMotionMatchingInterruptMode() const;
-	
+
 protected:
 
 	/** Proxy that transfers data between the game and animation threads. */

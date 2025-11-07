@@ -61,6 +61,14 @@
             "Enabled": true
         },
         {
+            "Name": "NinjaInteraction",
+            "Enabled": true
+        },        
+        {
+            "Name": "NinjaInventory",
+            "Enabled": true
+        },        
+        {
             "Name": "PoseSearch",
             "Enabled": true
         }

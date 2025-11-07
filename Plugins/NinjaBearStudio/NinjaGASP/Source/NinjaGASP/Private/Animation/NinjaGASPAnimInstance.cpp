@@ -43,6 +43,7 @@ void FNinjaGASPAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstanc
 
 UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 {
+	bOffsetRootBoneEnabled = true;
 	bHasVelocity = false;
 	bJustLanded = false;
 	bHasAcceleration = false;
@@ -64,6 +65,8 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	CharacterTransformOnLastFrame = FTransform::Identity;
 	CurrentSelectedDatabase = nullptr;
 
+	OffsetRootTranslationRadius = 30.f;
+	
 	bInRagdoll = false;
 	FlailRate = 0.f;
 	
@@ -635,7 +638,72 @@ float UNinjaGASPAnimInstance::GetStrafeYawRotationOffset() const
 	return OutValue;
 }
 
-EPoseSearchInterruptMode UNinjaGASPAnimInstance::GetMotionMatchingInterruptMode_Implementation() const
+EOffsetRootBoneMode UNinjaGASPAnimInstance::GetOffsetRootRotationMode() const
+{
+	static const FName DefaultSlotName = TEXT("DefaultSlot");
+	if (IsSlotActive(DefaultSlotName))
+	{
+		return EOffsetRootBoneMode::Release;
+	}
+
+	return EOffsetRootBoneMode::Accumulate;
+}
+
+EOffsetRootBoneMode UNinjaGASPAnimInstance::GetOffsetRootTranslationMode() const
+{
+	static const FName DefaultSlotName = TEXT("DefaultSlot");
+	if (IsSlotActive(DefaultSlotName))
+	{
+		return EOffsetRootBoneMode::Release;
+	}
+
+	switch (MovementMode)
+	{
+		case ECharacterMovementMode::OnGround: return IsMoving() ? EOffsetRootBoneMode::Interpolate : EOffsetRootBoneMode::Release;
+		case ECharacterMovementMode::InAir: return EOffsetRootBoneMode::Release;
+		default: return EOffsetRootBoneMode::Release;
+	}
+}
+
+EOrientationWarpingSpace UNinjaGASPAnimInstance::GetOrientationWarpingSpace() const
+{
+	return bOffsetRootBoneEnabled ? EOrientationWarpingSpace::RootBoneTransform : EOrientationWarpingSpace::ComponentTransform;
+}
+
+float UNinjaGASPAnimInstance::GetMotionMatchingBlendTime() const
+{
+	static constexpr float DefaultBlendTime = 0.2f;
+	switch (MovementMode)
+	{
+		case ECharacterMovementMode::OnGround:
+		switch (MovementModeOnLastFrame)
+		{
+			// If the movement mode is on the ground but the mode last frame was in the air, the character
+			// must've just landed, therefore set a shorter blend time for the land animations.
+			//
+			case ECharacterMovementMode::OnGround: return 0.5f;
+			case ECharacterMovementMode::InAir: return 0.2f;
+			default: return DefaultBlendTime;
+		}
+		case ECharacterMovementMode::InAir:
+			// If the movement mode is in the air and the character is moving quickly upward,
+			// the character must've just jumped, therefore set a very short blend time for the jump animations.
+			//
+			return Velocity.Z > 100.f ? 0.15f : 0.5f;
+		default:
+			return DefaultBlendTime;
+	}
+}
+
+float UNinjaGASPAnimInstance::GetOffsetRootTranslationHalfLife() const
+{
+	// When stopped, we want to interpolate very quickly, so that the stop always ends
+	// at the capsule's center, but when moving, we allow for slightly smoother interpolation.
+	//
+	return MovementState == ECharacterMovementState::Idle ? 0.1f : 0.3f;
+}
+
+EPoseSearchInterruptMode UNinjaGASPAnimInstance::GetMotionMatchingInterruptMode() const
 {
 	if (ChangedMovementMode())
 	{
