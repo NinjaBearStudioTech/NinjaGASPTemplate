@@ -8,7 +8,7 @@
  * Aggregates values that are used in transitions.
  */
 USTRUCT(BlueprintType)
-struct FAnimationStateMachineControlFlags
+struct NINJAGASP_API FAnimationStateMachineControlFlags
 {
 	
 	GENERATED_BODY()

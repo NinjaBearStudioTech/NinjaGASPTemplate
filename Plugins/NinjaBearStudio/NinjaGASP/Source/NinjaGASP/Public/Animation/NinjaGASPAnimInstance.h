@@ -12,6 +12,8 @@
 #include "PoseSearch/PoseSearchTrajectoryLibrary.h"
 #include "Types/EAnimationStateMachineState.h"
 #include "Types/ECharacterGait.h"
+#include "Types/ECharacterMovementDirection.h"
+#include "Types/ECharacterMovementDirectionBias.h"
 #include "Types/ECharacterMovementMode.h"
 #include "Types/ECharacterMovementState.h"
 #include "Types/ECharacterRotationMode.h"
@@ -19,12 +21,14 @@
 #include "Types/EPlayerCameraMode.h"
 #include "Types/FAnimationBlendStackInputs.h"
 #include "Types/FAnimationStateMachineControlFlags.h"
+#include "Types/FCharacterMovementDirectionThresholds.h"
 #include "NinjaGASPAnimInstance.generated.h"
 
+class ACharacter;
 class UChooserTable;
 class UPoseSearchDatabase;
-class ACharacter;
 class UCharacterMovementComponent;
+class UAnimSequence;
 
 /** Settings used with the Pose Search Trajectory functionality. */
 USTRUCT(BlueprintType)
@@ -254,6 +258,27 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Anim Graph")
 	float SearchCost;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Movement Direction")
+	ECharacterMovementDirection MovementDirection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Movement Direction")
+	ECharacterMovementDirection MovementDirectionOnLastFrame;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Movement Direction")
+	ECharacterMovementDirectionBias MovementDirectionBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Movement Direction")
+	FCharacterMovementDirectionThresholds DirectionThresholds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Target Rotation")
+	FRotator TargetRotation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Target Rotation")
+	FRotator TargetRotationOnTransitionStart;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Machine|Target Rotation")
+	float TargetRotationDelta;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
 	bool bUseVelocityToDetermineMovement = false;
@@ -313,7 +338,13 @@ public:
 	FName AimOffsetCurveName;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
-	TObjectPtr<UChooserTable> PoseSearchDatabase;
+	TObjectPtr<UChooserTable> PoseSearchDatabaseTable;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	TObjectPtr<UChooserTable> StateMachineAnimationTable;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings")
+	TObjectPtr<UAnimSequence> CurveAnimSequenceForStrafeOffset;
 	
 	UNinjaGASPAnimInstance();
 
@@ -324,35 +355,41 @@ public:
 	bool IsMoving() const;
 
 	/**
-	 * Informs if gait changed since last frame.
+	 * Informs if gait changed from last frame.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedGait() const { return Gait != GaitOnLastFrame; }
 
 	/**
-	 * Informs if the movement mode changed since last frame.
+	 * Informs if the movement direction changed from last frame.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool ChangedMovementDirection() const { return MovementDirection != MovementDirectionOnLastFrame; }
+	
+	/**
+	 * Informs if the movement mode changed from last frame.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedMovementMode() const { return MovementMode != MovementModeOnLastFrame; }
 
 	/**
-	 * Informs if the movement state changed since last frame.
+	 * Informs if the movement state changed from last frame.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedMovementState() const { return MovementState != MovementStateOnLastFrame; }
 
 	/**
-	 * Informs if the rotation mode changed since last frame.
+	 * Informs if the rotation mode changed from last frame.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedRotationMode() const { return RotationMode != RotationModeOnLastFrame; }
 	
 	/**
-	 * Informs if stance changed since last frame.
+	 * Informs if stance changed from last frame.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool ChangedStance() const { return Stance != StanceOnLastFrame; }
-
+	
 	/**
 	 * Informs if the character is starting to move, based on velocity and trajectory future velocity.
 	 * It also takes into consideration if there's an ongoing pivot animation.
@@ -377,14 +414,41 @@ public:
 	 * Determines if the character landed below the heavy threshold (light land).
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
-	bool HasLandedLight() const { return bJustLanded && FMath::Abs(LandedVelocity.Z) < FMath::Abs(HeavyLandSpeedThreshold); }
+	bool HasLandedLight() const
+	{
+		return bJustLanded && FMath::Abs(LandedVelocity.Z) < FMath::Abs(HeavyLandSpeedThreshold);
+	}
 
 	/**
 	 * Determines if the character landed above or at the heavy threshold (heavy land).
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
-	bool HasLandedHeavy() const { return bJustLanded && FMath::Abs(LandedVelocity.Z) >= FMath::Abs(HeavyLandSpeedThreshold); }
+	bool HasLandedHeavy() const
+	{
+		return bJustLanded && FMath::Abs(LandedVelocity.Z) >= FMath::Abs(HeavyLandSpeedThreshold);
+	}
 
+	/**
+	 * Checks if the character just transitioned from "In Air" to "On Ground" movement, while standing.
+	 * This transition is relevant to the State Machine setup, so it selects landing animations.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool TransitionedFromInAirToOnGround() const
+	{
+		return MovementMode == ECharacterMovementMode::OnGround && MovementModeOnLastFrame == ECharacterMovementMode::InAir;
+	}
+
+	/**
+	 * Checks if the character just transitioned from "In Air" to "On Ground" movement, while moving.
+	 * This transition is relevant to the State Machine setup, so it selects landing animations with movement.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool TransitionedFromInAirToOnGroundWhileMoving() const
+	{
+		return MovementMode == ECharacterMovementMode::OnGround && MovementModeOnLastFrame == ECharacterMovementMode::InAir
+			&& FMath::Abs(GetTrajectoryTurnAngle()) <= 120.f;
+	}
+	
 	/**
 	 * Evaluates/selects the tail end of traversal animations when blending back to locomotion.
 	 */
@@ -400,6 +464,28 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	bool IsPivoting() const;
 
+	/**
+	 * Defines the aim offset state, considering the strafe mode, movement thresholds and montages playing.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool ShouldEnableAimOffset() const;
+	
+	/**
+	 * Provides the Yaw part of the Aim Offset, considering the rotation mode.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetAimOffsetYaw() const
+	{
+		return RotationMode == ECharacterRotationMode::Strafe ? AimOffset.X : 0.f;	
+	}
+
+	/**
+	 * Gets the direction between the future velocity and the current character rotation,
+	 * and uses a curve to map that direction to an offset value
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	float GetStrafeYawRotationOffset() const;
+	
 	/**
 	 * Determines whether motion matching will force a blend into a new database or wait until it finds a better match.
 	 */
@@ -449,6 +535,18 @@ protected:
 	void UpdateRagdoll(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
 
 	/**
+	 * Updates movement direction for the State Machine.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	void UpdateMovementDirection(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+
+	/**
+	 * Updates target rotation for the StateMachine.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	void UpdateTargetRotation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement);
+	
+	/**
 	 * Updates motion matching data, selecting the database using chooser tables.
 	 * To extend this functionality, please look into "HandleMotionMatching".
 	 */
@@ -474,8 +572,21 @@ protected:
 	 * Usually, this is the "Offset Root Bone" node from the Anim Graph.
 	 */
 	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
-	FAnimNodeReference GetOffsetRootNode() const ;
+	FAnimNodeReference GetOffsetRootNode() const;
 
+	/**
+	 * Provides an animation node that is responsible for the blend stack.
+	 * Usually, this is the "Offset Root Bone" node from the Anim Graph.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	FAnimNodeReference GetStateMachineBlendStackNode() const;
+	
+	/**
+	 * Provides all thresholds applied to movement, while in State Machine mode.
+	 */
+	UFUNCTION(BlueprintPure, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	FCharacterMovementDirectionThresholds GetMovementDirectionThresholds() const;
+	
 	/**
 	 * Gets the turn angle expected from the current trajectory.
 	 */

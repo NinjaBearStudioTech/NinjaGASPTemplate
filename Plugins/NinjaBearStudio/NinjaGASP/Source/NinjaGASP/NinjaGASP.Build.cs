@@ -35,7 +35,9 @@ public class NinjaGASP : ModuleRules
 		
 		PrivateDependencyModuleNames.AddRange(new []
 		{
+			"AnimGraphRuntime",
 			"AnimationWarpingRuntime",
+			"BlendStack",
 			"CoreUObject",
 			"GameplayCameras",
 			"Engine",

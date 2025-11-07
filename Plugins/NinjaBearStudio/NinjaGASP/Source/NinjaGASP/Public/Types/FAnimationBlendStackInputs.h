@@ -11,13 +11,13 @@ class UBlendProfile;
  * Struct used in Experimental State Machine to drive Blend Stack inputs.
  */
 USTRUCT(BlueprintType)
-struct FAnimationBlendStackInputs
+struct NINJAGASP_API FAnimationBlendStackInputs
 {
 	
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend Stack Input")
-	TObjectPtr<UAnimationAsset> Animation = nullptr;
+	TObjectPtr<const UAnimationAsset> Animation = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend Stack Input")
 	bool bLoop = false;
@@ -29,7 +29,7 @@ struct FAnimationBlendStackInputs
 	float BlendTime = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend Stack Input")
-	TObjectPtr<UBlendProfile> BlendProfile = nullptr;
+	TObjectPtr<const UBlendProfile> BlendProfile = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend Stack Input")
 	TArray<FName> Tags;

@@ -3,6 +3,10 @@
 
 #include "AnimationWarpingLibrary.h"
 #include "ChooserFunctionLibrary.h"
+#include "KismetAnimationLibrary.h"
+#include "Animation/AnimationAsset.h"
+#include "Animation/BlendProfile.h"
+#include "BlendStack/BlendStackAnimNodeLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
@@ -12,6 +16,7 @@
 #include "PoseSearch/MotionMatchingAnimNodeLibrary.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchResult.h"
+#include "Types/FAnimationMotionMatchingChooserOutputs.h"
 
 #pragma region Proxy
 // Begin Proxy implementation -------------------------
@@ -93,6 +98,20 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	TrajectoryCurrentVelocity = FVector::ZeroVector;
 	TrajectoryFutureVelocity = FVector::ZeroVector;
 
+	bUseStateMachine = false;
+	SearchCost = 0.f;
+	StateMachineState = EAnimationStateMachineState::IdleLoop;
+	BlendStackInputs = FAnimationBlendStackInputs();
+	PreviousBlendStackInputs = FAnimationBlendStackInputs();
+	AnimationControlFlags = FAnimationStateMachineControlFlags();
+	MovementDirection = ECharacterMovementDirection::F;
+	MovementDirectionOnLastFrame = ECharacterMovementDirection::F;
+	MovementDirectionBias = ECharacterMovementDirectionBias::LeftFootForward;
+	DirectionThresholds = FCharacterMovementDirectionThresholds();
+	TargetRotation = FRotator::ZeroRotator;
+	TargetRotationOnTransitionStart = FRotator::ZeroRotator;
+	TargetRotationDelta = 0.f;
+	
 	bUseVelocityToDetermineMovement = false;
 	bUseTrajectoryFutureVelocityToDetermineMovement = true;
 	bUseAccelerationToDetermineMovement = true;
@@ -112,13 +131,6 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	CurrentTrajectoryTimeSample = FVector2D(0.f, 0.2f);
 	FutureTrajectoryTimeSample = FVector2D(0.4f, 0.5f);
 	AimOffsetCurveName = TEXT("Disable_AO");
-
-	bUseStateMachine = false;
-	StateMachineState = EAnimationStateMachineState::IdleLoop;
-	BlendStackInputs = FAnimationBlendStackInputs();
-	PreviousBlendStackInputs = FAnimationBlendStackInputs();
-	AnimationControlFlags = FAnimationStateMachineControlFlags();
-	SearchCost = 0.f;
 }
 
 FAnimInstanceProxy* UNinjaGASPAnimInstance::CreateAnimInstanceProxy()
@@ -141,6 +153,12 @@ void UNinjaGASPAnimInstance::NativeThreadSafeUpdateAnimation(const float DeltaSe
 	UpdateTrajectory(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateStates(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
 	UpdateRagdoll(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+
+	if (bUseStateMachine)
+	{
+		UpdateMovementDirection(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+		UpdateTargetRotation(DeltaSeconds,Proxy.CharacterOwner, Proxy.CharacterMovement);
+	}
 }
 
 void UNinjaGASPAnimInstance::UpdateEssentialValues_Implementation(const float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
@@ -314,6 +332,78 @@ void UNinjaGASPAnimInstance::UpdateRagdoll_Implementation(float DeltaSeconds, co
 	FlailRate = UKismetMathLibrary::MapRangeClamped(RawFlailRate, 0.f, 1000.f, 0.f, 1.f);
 }
 
+void UNinjaGASPAnimInstance::UpdateMovementDirection_Implementation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
+{
+	MovementDirectionOnLastFrame = MovementDirection;
+	if (MovementState != ECharacterMovementState::Moving)
+	{
+		return;
+	}
+
+	static constexpr float Tolerance = 0.0001f;
+	TrajectoryFutureVelocity.Normalize(Tolerance);
+	DirectionThresholds = GetMovementDirectionThresholds();
+	
+	const FRotator BaseRotation = CharacterTransform.GetRotation().Rotator();
+	const float Direction = UKismetAnimationLibrary::CalculateDirection(TrajectoryFutureVelocity, BaseRotation);
+
+	if (RotationMode == ECharacterRotationMode::OrientToMovement || Gait == ECharacterGait::Sprint)
+	{
+		MovementDirection = ECharacterMovementDirection::F;
+	}
+	else if (UKismetMathLibrary::InRange_FloatFloat(Direction, DirectionThresholds.ForwardLeft, DirectionThresholds.ForwardRight))
+	{
+		MovementDirection = ECharacterMovementDirection::F;
+	}
+	else if (UKismetMathLibrary::InRange_FloatFloat(Direction, DirectionThresholds.BackwardLeft, DirectionThresholds.ForwardLeft))
+	{
+		MovementDirection = MovementDirectionBias == ECharacterMovementDirectionBias::LeftFootForward ?
+			ECharacterMovementDirection::LL : ECharacterMovementDirection::LR;		
+	}
+	else if (UKismetMathLibrary::InRange_FloatFloat(Direction, DirectionThresholds.ForwardRight, DirectionThresholds.BackwardRight))
+	{
+		MovementDirection = MovementDirectionBias == ECharacterMovementDirectionBias::LeftFootForward ?
+			ECharacterMovementDirection::RL : ECharacterMovementDirection::RR;
+	}
+	else
+	{
+		MovementDirection = ECharacterMovementDirection::B;
+	}
+}
+
+void UNinjaGASPAnimInstance::UpdateTargetRotation_Implementation(float DeltaSeconds, const ACharacter* CharacterOwner, const UCharacterMovementComponent* CharacterMovement)
+{
+	if (IsMoving())
+	{
+		switch (RotationMode)
+		{
+			case ECharacterRotationMode::OrientToMovement:
+			{
+				TargetRotation = CharacterTransform.Rotator();
+				break;
+			}
+			case ECharacterRotationMode::Strafe:
+			{
+				TargetRotation.Roll = CharacterTransform.Rotator().Roll;
+				TargetRotation.Roll = CharacterTransform.Rotator().Pitch;
+
+				// When in the Strafe rotation mode, an offset is applied to the target rotation in
+				// order for the directional animations to match the actual strafing angle.
+				const float StrafeYawRotationOffset = GetStrafeYawRotationOffset();
+				TargetRotation.Yaw = CharacterTransform.Rotator().Pitch + StrafeYawRotationOffset;
+				break;
+			}
+		}
+	}
+	else
+	{
+		TargetRotation = CharacterTransform.Rotator();
+	}
+
+	const FRotator RootRotation = RootTransform.Rotator();
+	TargetRotationDelta = UKismetMathLibrary::NormalizedDeltaRotator(TargetRotation, RootRotation).Yaw;
+}
+
 void UNinjaGASPAnimInstance::UpdateMotionMatching(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
 {
 	EAnimNodeReferenceConversionResult Result;
@@ -326,11 +416,14 @@ void UNinjaGASPAnimInstance::UpdateMotionMatching(const FAnimUpdateContext& Cont
 
 void UNinjaGASPAnimInstance::HandleMotionMatching_Implementation(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef)
 {
-	UPoseSearchDatabase* Database = Cast<UPoseSearchDatabase>(UChooserFunctionLibrary::EvaluateChooser(this, PoseSearchDatabase, UPoseSearchDatabase::StaticClass()));
-	if (IsValid(Database))
+	if (IsValid(PoseSearchDatabaseTable))
 	{
-		const EPoseSearchInterruptMode InterruptMode = GetMotionMatchingInterruptMode();
-		UMotionMatchingAnimNodeLibrary::SetDatabaseToSearch(MotionMatchingNodeRef, Database, InterruptMode);
+		UPoseSearchDatabase* Database = Cast<UPoseSearchDatabase>(UChooserFunctionLibrary::EvaluateChooser(this, PoseSearchDatabaseTable, UPoseSearchDatabase::StaticClass()));
+		if (IsValid(Database))
+		{
+			const EPoseSearchInterruptMode InterruptMode = GetMotionMatchingInterruptMode();
+			UMotionMatchingAnimNodeLibrary::SetDatabaseToSearch(MotionMatchingNodeRef, Database, InterruptMode);
+		}	
 	}
 }
 
@@ -407,6 +500,47 @@ bool UNinjaGASPAnimInstance::JustTraversed() const
 	return !bDefaultSlotActive && bHasMovingTraversalCurveValue && TurnAngleBelowThreshold;
 }
 
+FCharacterMovementDirectionThresholds
+UNinjaGASPAnimInstance::GetMovementDirectionThresholds_Implementation() const
+{
+	static const FCharacterMovementDirectionThresholds ForwardBackwardThresholds(-60.f, 60.f, -120.f, 120.f);
+	static const FCharacterMovementDirectionThresholds LateralLoopThresholds(-60.f, 60.f, -140.f, 140.f);
+	static const FCharacterMovementDirectionThresholds LateralAimThresholds(-40.f, 40.f, -140.f, 140.f);
+
+	const bool bIsForwardOrBackward =
+		MovementDirection == ECharacterMovementDirection::F ||
+		MovementDirection == ECharacterMovementDirection::B;
+
+	const bool bIsLateral =
+		MovementDirection == ECharacterMovementDirection::LL ||
+		MovementDirection == ECharacterMovementDirection::LR ||
+		MovementDirection == ECharacterMovementDirection::RL ||
+		MovementDirection == ECharacterMovementDirection::RR;
+
+	if (bIsForwardOrBackward)
+	{
+		return ForwardBackwardThresholds;
+	}
+
+	if (!bIsLateral)
+	{
+		return FCharacterMovementDirectionThresholds();
+	}
+
+	if (IsPivoting())
+	{
+		return ForwardBackwardThresholds;
+	}
+
+	const bool bUseLoopThresholds = BlendStackInputs.bLoop && !bIsAiming;
+	return bUseLoopThresholds ? LateralLoopThresholds : LateralAimThresholds;
+}
+
+FAnimNodeReference UNinjaGASPAnimInstance::GetStateMachineBlendStackNode_Implementation() const
+{
+	return FAnimNodeReference();
+}
+
 float UNinjaGASPAnimInstance::GetTrajectoryTurnAngle() const
 {
 	const FRotator FutureVelocityRotator = TrajectoryFutureVelocity.ToOrientationRotator();
@@ -423,6 +557,82 @@ bool UNinjaGASPAnimInstance::IsPivoting() const
 	}
 
 	return bUseStateMachine ? IsPivotingInStateMachine() : IsPivotingInMotionMatching(); 
+}
+
+bool UNinjaGASPAnimInstance::ShouldEnableAimOffset() const
+{
+	if (RotationMode != ECharacterRotationMode::Strafe)
+	{
+		return false;
+	}
+
+	const float Threshold = MovementState == ECharacterMovementState::Idle ? 115.f : 180.f; 
+	if (FMath::Abs(AimOffset.X) > Threshold)
+	{
+		return false;
+	}
+
+	static const FName SlotName = TEXT("DefaultSlot");
+	const float DefaultSlotWeight = Blueprint_GetSlotMontageLocalWeight(SlotName);
+	if (DefaultSlotWeight >= 0.5f)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+float UNinjaGASPAnimInstance::GetStrafeYawRotationOffset() const
+{
+	FVector NormalizedVelocity = TrajectoryFutureVelocity;
+	NormalizedVelocity.Normalize();
+
+	const FRotator BaseRotation = CharacterTransform.Rotator();
+	const float Direction = UKismetAnimationLibrary::CalculateDirection(NormalizedVelocity, BaseRotation);
+
+	// Explanation from the author of GASP:
+	//
+	// Because querying a curve asset is not currently thread safe, we store the curves in a dummy anim sequence,
+	// which is why we have to map the direction to the number of frames the dummy anim sequence has, and divide by 30.
+	// In the animation, each frame represents an angle at an increment of 45 degrees.
+	//
+	// Note from myself:
+	// Yikes...
+	//
+	const float MappedDirection = UKismetMathLibrary::MapRangeClamped(Direction, -180.f, 180.f, 0.f, 8.f) / 30.f;
+
+	FName CurveName = NAME_None;
+	switch (MovementDirection)
+	{
+		case ECharacterMovementDirection::F:
+			CurveName = TEXT("StrafeOffset_F");
+			break;
+		case ECharacterMovementDirection::B:
+			CurveName = TEXT("StrafeOffset_B");
+			break;
+		case ECharacterMovementDirection::LL:
+			CurveName = TEXT("StrafeOffset_LL");
+			break;
+		case ECharacterMovementDirection::LR:
+			CurveName = TEXT("StrafeOffset_LR");
+			break;
+		case ECharacterMovementDirection::RL:
+			CurveName = TEXT("StrafeOffset_RL");
+			break;
+		case ECharacterMovementDirection::RR:
+			CurveName = TEXT("StrafeOffset_RR");
+			break;
+	}
+
+	float OutValue = 0.f;
+	
+	if (IsValid(CurveAnimSequenceForStrafeOffset) && CurveName != NAME_None)
+	{
+		UAnimationWarpingLibrary::GetCurveValueFromAnimation(CurveAnimSequenceForStrafeOffset,
+			CurveName, MappedDirection, OutValue);	
+	}
+	
+	return OutValue;
 }
 
 EPoseSearchInterruptMode UNinjaGASPAnimInstance::GetMotionMatchingInterruptMode_Implementation() const
@@ -529,6 +739,74 @@ void UNinjaGASPAnimInstance::SetBlendStackAnimFromChooser_Implementation(const E
 	StateMachineState = NewState;
 	PreviousBlendStackInputs = BlendStackInputs;
 	AnimationControlFlags.Reset();
+
+	FAnimationMotionMatchingChooserOutputs AnimationOutputs;
+	FChooserEvaluationContext ChooserEvaluationContext = UChooserFunctionLibrary::MakeChooserEvaluationContext();
+	ChooserEvaluationContext.AddObjectParam(this);
+	ChooserEvaluationContext.AddStructParam(AnimationOutputs);
+
+	const FInstancedStruct ChooserInstance = UChooserFunctionLibrary::MakeEvaluateChooser(StateMachineAnimationTable);
+	const TArray<UObject*> ChooserObjects = UChooserFunctionLibrary::EvaluateObjectChooserBaseMulti(ChooserEvaluationContext, ChooserInstance, UAnimationAsset::StaticClass());
+
+	TArray<UAnimationAsset*> SelectedAnimations;
+	for (UObject* ChooserObject : ChooserObjects)
+	{
+		UAnimationAsset* ChooserAnimation = Cast<UAnimationAsset>(ChooserObject);
+		if (IsValid(ChooserAnimation))
+		{
+			SelectedAnimations.Add(ChooserAnimation);
+		}
+	}
+
+	if (SelectedAnimations.IsEmpty())
+	{
+		AnimationControlFlags.bNoValidAnimation = true;
+		return;
+	}
+
+	BlendStackInputs.Animation = SelectedAnimations[0];
+	BlendStackInputs.StartTime = AnimationOutputs.StartTime;
+	BlendStackInputs.BlendTime = AnimationOutputs.BlendTime;
+	BlendStackInputs.Tags = AnimationOutputs.Tags;
+	BlendStackInputs.BlendProfile = GetBlendProfileByName(AnimationOutputs.BlendProfileName);
+	UPoseSearchLibrary::IsAnimationAssetLooping(SelectedAnimations[0], BlendStackInputs.bLoop);
 	
-	// TODO continue with the chooser part.
+	if (AnimationOutputs.bUseMotionMatching)
+	{
+		FPoseSearchBlueprintResult Result;
+		
+		static const FName PoseHistoryName = TEXT("PoseHistory");
+		const FPoseSearchContinuingProperties ContinuingProperties = FPoseSearchContinuingProperties();
+		const FPoseSearchFutureProperties FutureProperties = FPoseSearchFutureProperties();
+		UPoseSearchLibrary::MotionMatch(this, ChooserObjects, PoseHistoryName, ContinuingProperties, FutureProperties, Result);
+
+		SearchCost = Result.SearchCost;
+		const float CostLimit = AnimationOutputs.MotionMatchingCostLimit;
+		const bool bCanAfford = CostLimit > 0.f ? SearchCost <= CostLimit : true;
+
+		const UAnimationAsset* Animation = Cast<UAnimationAsset>(Result.SelectedAnim);
+		if (IsValid(Animation) && bCanAfford)
+		{
+			BlendStackInputs.Animation = Animation;
+			BlendStackInputs.StartTime = Result.SelectedTime;
+			UPoseSearchLibrary::IsAnimationAssetLooping(SelectedAnimations[0], BlendStackInputs.bLoop);
+		}
+		else
+		{
+			AnimationControlFlags.bNoValidAnimation = true;
+			return;
+		}
+	}
+
+	if (bForceBlend)
+	{
+		FAnimNodeReference Node = GetStateMachineBlendStackNode();
+		EAnimNodeReferenceConversionResult BlendStackNodeResult;
+		
+		FBlendStackAnimNodeReference NodeReference = UBlendStackAnimNodeLibrary::ConvertToBlendStackNode(Node, BlendStackNodeResult);
+		if (BlendStackNodeResult == EAnimNodeReferenceConversionResult::Succeeded)
+		{
+			UBlendStackAnimNodeLibrary::ForceBlendNextUpdate(NodeReference);
+		}
+	}
 }
