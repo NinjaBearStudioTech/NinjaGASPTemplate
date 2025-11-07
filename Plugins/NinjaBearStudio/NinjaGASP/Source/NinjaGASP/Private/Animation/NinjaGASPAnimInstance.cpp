@@ -440,6 +440,21 @@ void UNinjaGASPAnimInstance::UpdateMotionMatchingPostSelection(const FAnimUpdate
 	}
 }
 
+bool UNinjaGASPAnimInstance::IsBlendStackAnimationAlmostComplete() const
+{
+	const FAnimNodeReference AnimNode = GetStateMachineBlendStackNode();
+
+	EAnimNodeReferenceConversionResult BlendStackResult;
+	const FBlendStackAnimNodeReference BlendStackNodeRef = UBlendStackAnimNodeLibrary::ConvertToBlendStackNode(AnimNode, BlendStackResult);
+	if (BlendStackResult == EAnimNodeReferenceConversionResult::Failed)
+	{
+		return false;
+	}
+
+	return UBlendStackAnimNodeLibrary::IsCurrentAssetLooping(BlendStackNodeRef) == false
+		&& UBlendStackAnimNodeLibrary::GetCurrentAssetTimeRemaining(BlendStackNodeRef) <= 0.75;
+}
+
 void UNinjaGASPAnimInstance::HandleMotionMatchingPostSelection_Implementation(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef)
 {
 	FPoseSearchBlueprintResult Result;
@@ -877,4 +892,57 @@ void UNinjaGASPAnimInstance::SetBlendStackAnimFromChooser_Implementation(const E
 			UBlendStackAnimNodeLibrary::ForceBlendNextUpdate(NodeReference);
 		}
 	}
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_IdleLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr bool bForceBlend = false;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::IdleLoop, bForceBlend);
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_TransitionToIdleLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr bool bForceBlend = true;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::TransitionToIdleLoop, bForceBlend);	
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_LocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	TargetRotationOnTransitionStart = TargetRotation;
+	
+	static constexpr bool bForceBlend = false;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::LocomotionLoop, bForceBlend);	
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_TransitionToLocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	TargetRotationOnTransitionStart = TargetRotation;
+	
+	static constexpr bool bForceBlend = true;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::TransitionToLocomotionLoop, bForceBlend);		
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_InAirLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr bool bForceBlend = false;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::InAirLoop, bForceBlend);		
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_TransitionToInAirLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr bool bForceBlend = true;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::TransitionToInAirLoop, bForceBlend);		
+}
+
+void UNinjaGASPAnimInstance::OnStateEntry_IdleBreak(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr bool bForceBlend = true;
+	SetBlendStackAnimFromChooser(EAnimationStateMachineState::IdleBreak, bForceBlend);		
+}
+
+void UNinjaGASPAnimInstance::OnUpdate_TransitionToLocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	static constexpr float InterpSpeed = 5.f;
+	TargetRotationOnTransitionStart = UKismetMathLibrary::RInterpTo(
+		TargetRotationOnTransitionStart, TargetRotation, GetDeltaSeconds(), InterpSpeed);
 }

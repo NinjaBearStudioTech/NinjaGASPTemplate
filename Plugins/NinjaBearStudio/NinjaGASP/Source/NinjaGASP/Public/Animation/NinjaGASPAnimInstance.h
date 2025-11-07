@@ -601,22 +601,76 @@ protected:
 	 * Updates motion matching data, selecting the database using chooser tables.
 	 * To extend this functionality, please look into "HandleMotionMatching".
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Ninja Locomotion|Anim Node Functions", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateMotionMatching(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
 	
 	/**
 	 * Updates motion matching data, after a node has been selected in animation.
 	 * To extend this functionality, please look into "HandleMotionMatchingPostSelection".
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Ninja Locomotion|Anim Node Functions", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
 	void UpdateMotionMatchingPostSelection(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
 
+	/**
+	 * Handles the FSM entering the "Idle Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_IdleLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
+	/**
+	 * Handles the FSM entering the "Transition to Idle Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_TransitionToIdleLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
+	/**
+	 * Handles the FSM entering the "Locomotion Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_LocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+	
+	/**
+	 * Handles the FSM entering the "Transition to Locomotion Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_TransitionToLocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
+	/**
+	 * Handles the FSM entering the "In Air Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_InAirLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
+	/**
+	 * Handles the FSM entering the "Transition to Air Loop" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_TransitionToInAirLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+
+	/**
+	 * Handles the FSM entering the "Idle Break" state entry.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnStateEntry_IdleBreak(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+	
+	/**
+	 * Handles the FSM entering the "Transition to Locomotion Loop" state update
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance|State Machine|Anim Graph", meta = (BlueprintThreadSafe))
+	void OnUpdate_TransitionToLocomotionLoop(const FAnimUpdateContext& Context, const FAnimNodeReference& Node);
+	
 	/**
 	 * Evaluates the requested state and then selects and updates the data to run it.
 	 * Meant to be called from "On State Entry" functions.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	void SetBlendStackAnimFromChooser(EAnimationStateMachineState NewState, bool bForceBlend);
+
+	/**
+	 * Used in the State Controller to trigger a blend whenever the currently playing animation is ending.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe))
+	bool IsBlendStackAnimationAlmostComplete() const;
 	
 	/**
 	 * Provides an animation node that indicates the offset root transform.
