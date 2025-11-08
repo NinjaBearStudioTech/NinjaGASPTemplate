@@ -2,8 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NinjaGASPBaseLocomotionAbility.h"
 #include "AbilitySystem/NinjaGASGameplayAbility.h"
-#include "NinjaGASPBaseLocomotionCostAbility.generated.h"
+#include "NinjaGASPBaseLocomotionWithCostAbility.generated.h"
 
 class UAbilityTask_NetworkSyncPoint;
 
@@ -14,14 +15,14 @@ class UAbilityTask_NetworkSyncPoint;
  * Otherwise, if no cost is set, the ability basically executes as normal locomotion.
  */
 UCLASS(Abstract)
-class NINJAGASP_API UNinjaGASPBaseLocomotionCostAbility : public UNinjaGASGameplayAbility
+class NINJAGASP_API UNinjaGASPBaseLocomotionWithCostAbility : public UNinjaGASPBaseLocomotionAbility
 {
 	
 	GENERATED_BODY()
 
 public:
 
-	UNinjaGASPBaseLocomotionCostAbility();
+	UNinjaGASPBaseLocomotionWithCostAbility();
 
 protected:
 
@@ -33,7 +34,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Recurring Cost")
 	float MaxServerWaitTime;
 
-	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
@@ -57,12 +57,6 @@ protected:
 	void OnServerSynchronized();
 
 	/**
-	 * Confirms we can activate the locomotion mode for the fist time.
-	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
-	bool CanActivateLocomotionMode() const;
-
-	/**
 	 * Confirms we can keep the locomotion active after a cost reapplication.
 	 * 
 	 * By default, follows the same logic as "CanActivateLocomotionMode", so you only
@@ -71,31 +65,7 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
 	bool CanKeepLocomotionModeActive() const;
 	
-	/**
-	 * Activates the locomotion mode relevant to this ability.
-	 *
-	 * This is invoked when the cost is applied for the first time, as the ability activates,
-	 * or right away when the ability activates and there is no cost Gameplay Effect assigned.
-	 *
-	 * @return
-	 *		Boolean informing if the related locomotion mode was activated.
-	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
-	bool ActivateLocomotionMode();
-
-	/**
-	 * Deactivates the locomotion mode relevant to this ability.
-	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
-	void DeactivateLocomotionMode();
-	
 private:
-
-	/**
-	 * Tracks changes done in the locomotion mode.
-	 * This also affects the cooldown application.
-	 */
-	bool bChangedLocomotionMode;
 
 	/** Timer for the next synchronization. */
 	FTimerHandle NetSyncScheduledTimer;

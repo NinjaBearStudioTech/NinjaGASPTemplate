@@ -3,11 +3,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/NinjaGASGameplayAbility.h"
-#include "AbilitySystem/NinjaGASPBaseLocomotionCostAbility.h"
+#include "AbilitySystem/NinjaGASPBaseLocomotionWithCostAbility.h"
 #include "GASPAbility_Jog.generated.h"
 
 /**
- * Integrates with the Advanced Movement Interface to set the movement mode to jog.
+ * Integrates with the Advanced Movement Interface to set the jog intent.
  *
  * This is actually something that you don't need by default, since "jogging" is the
  * default state for the GASP character. However, if you are making a game where "walking"
@@ -21,7 +21,7 @@
  * This ability supports cost (e.g. "stamina consumption").
  */
 UCLASS()
-class NINJAGASP_API UGASPAbility_Jog : public UNinjaGASPBaseLocomotionCostAbility
+class NINJAGASP_API UGASPAbility_Jog : public UNinjaGASPBaseLocomotionWithCostAbility
 {
 	
 	GENERATED_BODY()

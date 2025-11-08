@@ -3,10 +3,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/NinjaGASGameplayAbility.h"
+#include "AbilitySystem/NinjaGASPBaseLocomotionAbility.h"
 #include "GASPAbility_Walk.generated.h"
 
 /**
- * Integrates with the Advanced Movement Interface to set the movement mode to walk.
+ * Integrates with the Advanced Movement Interface to set the walk intent.
  *
  * This can also be granted by default, as a passive ability, so the character is set
  * to walk by default, inverting the default behavior to "walk/jog" instead of "jog/walk".
@@ -19,7 +20,7 @@
  * it ends. This is necessary since the GASP's default state is actually jogging.
  */
 UCLASS()
-class NINJAGASP_API UGASPAbility_Walk : public UNinjaGASGameplayAbility
+class NINJAGASP_API UGASPAbility_Walk : public UNinjaGASPBaseLocomotionAbility
 {
 	
 	GENERATED_BODY()
@@ -28,17 +29,12 @@ public:
 
 	UGASPAbility_Walk();
 
-	/**
-	 * Checks if the owner is currently walking.
-	 */
-	UFUNCTION(BlueprintPure, Category = "GASP|Abilities|Walk")
+	/** Checks if the owner is currently walking. */
 	bool IsWalking() const;
 	
 protected:
 
-	// -- Begin Gameplay Ability implementation
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
-	// -- End Gameplay Ability implementation
+	virtual bool ActivateLocomotionMode_Implementation() override;
+	virtual void DeactivateLocomotionMode_Implementation() override;
 
 };

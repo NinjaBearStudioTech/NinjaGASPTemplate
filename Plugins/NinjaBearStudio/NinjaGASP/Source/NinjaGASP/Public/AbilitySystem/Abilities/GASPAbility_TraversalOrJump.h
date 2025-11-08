@@ -2,14 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "AbilitySystem/NinjaGASPBaseLocomotionAbility.h"
 #include "GASPAbility_TraversalOrJump.generated.h"
 
 /**
  * Handles the traversal check and action. If that fails, leads to a jump.
  */
 UCLASS()
-class NINJAGASP_API UGASPAbility_TraversalOrJump : public UObject
+class NINJAGASP_API UGASPAbility_TraversalOrJump : public UNinjaGASPBaseLocomotionAbility
 {
 	
 	GENERATED_BODY()

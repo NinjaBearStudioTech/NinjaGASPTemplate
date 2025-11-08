@@ -119,28 +119,28 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetWalkingIntent(bool bWantsToWalk);
-	virtual void SetWalkingIntent_Implementation(bool bWantsToWalk) const { }
+	virtual void SetWalkingIntent_Implementation(bool bWantsToWalk) { }
 
 	/**
 	 * Registers the sprinting intent.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetSprintingIntent(bool bWantsToSprint);
-	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) const { }
+	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) { }
 
 	/**
 	 * Registers the strafing intent.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	void SetStrafingIntent(bool bWantsToStrafe);
-	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) const { }
+	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) { }
 
 	/**
 	 * Registers the aiming intent.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
-	void SetAimingIntent(bool bWantsToStrafe);
-	virtual void SetAimingIntent_Implementation(bool bWantsToAim) const { }
+	void SetAimingIntent(bool bWantsToAim);
+	virtual void SetAimingIntent_Implementation(bool bWantsToAim) { }
 
 	/**
 	 * Provides the last velocity when the character landed.

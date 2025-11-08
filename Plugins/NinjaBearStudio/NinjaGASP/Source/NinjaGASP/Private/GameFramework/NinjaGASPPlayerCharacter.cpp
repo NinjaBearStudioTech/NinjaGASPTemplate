@@ -100,6 +100,12 @@ UNinjaInventoryManagerComponent* ANinjaGASPPlayerCharacter::GetInventoryManager_
 	return nullptr;
 }
 
+void ANinjaGASPPlayerCharacter::SetCameraAiming_Implementation(const bool bNewCameraAiming)
+{
+	// Just relay the request to the intent.
+	Execute_SetAimingIntent(this, bNewCameraAiming);
+}
+
 void ANinjaGASPPlayerCharacter::UnPossessed()
 {
 	ClearAbilitySystemComponent();

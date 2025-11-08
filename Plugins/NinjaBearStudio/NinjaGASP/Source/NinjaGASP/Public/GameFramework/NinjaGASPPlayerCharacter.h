@@ -35,6 +35,10 @@ public:
 	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	// -- End Character implementation
 
+	// -- Begin PlayerCameraMode implementation
+	virtual void SetCameraAiming_Implementation(bool bNewCameraAiming) override;
+	// -- End PlayerCameraMode implementation
+	
 protected:
 
 	/** Initializes (or clears) the Ability System, from the provided Player State. */

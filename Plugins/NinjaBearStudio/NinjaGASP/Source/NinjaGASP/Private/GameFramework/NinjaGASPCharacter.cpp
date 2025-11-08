@@ -1,7 +1,6 @@
 ﻿// Ninja Bear Studio Inc., all rights reserved.
 #include "GameFramework/NinjaGASPCharacter.h"
 
-#include "AIController.h"
 #include "NinjaGASPTags.h"
 #include "Camera/CameraComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
@@ -12,12 +11,14 @@
 #include "Components/NinjaInventoryManagerComponent.h"
 #include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
+#include "Interfaces/PlayerCameraModeInterface.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Hearing.h"
 #include "Perception/AISense_Sight.h"
+#include "Types/EPlayerCameraMode.h"
 
 FName ANinjaGASPCharacter::CombatManagerName = TEXT("CombatManager");
 FName ANinjaGASPCharacter::ComboManagerName = TEXT("ComboManager");
@@ -66,7 +67,6 @@ void ANinjaGASPCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	bIsLocallyControlled = NewController->IsLocalController();
-	SetupCharacterMovement();
 	SetupPlayerCamera();
 }
 
@@ -175,46 +175,6 @@ void ANinjaGASPCharacter::RegisterStimuliSources()
 	}
 }
 
-void ANinjaGASPCharacter::SetupCharacterMovement()
-{
-	const AController* MyController = GetController();
-	if (IsValid(MyController))
-	{
-		if (MyController->IsA<AAIController>())
-		{
-			SetupBotMovement();	
-		}
-		else
-		{
-			SetupPlayerMovement();
-		}
-	}
-}
-
-void ANinjaGASPCharacter::SetupBotMovement()
-{
-	static constexpr bool bWantsToStrafe = false; 
-	Execute_SetStrafingIntent(this, bWantsToStrafe);
-
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	if (IsValid(CharMovement))
-	{
-		CharMovement->bOrientRotationToMovement = true;
-	}
-}
-
-void ANinjaGASPCharacter::SetupPlayerMovement()
-{
-	static constexpr bool bWantsToStrafe = true; 
-	Execute_SetStrafingIntent(this, bWantsToStrafe);
-
-	UCharacterMovementComponent* CharMovement = GetCharacterMovement();
-	if (IsValid(CharMovement))
-	{
-		CharMovement->bOrientRotationToMovement = false;
-	}	
-}
-
 FCharacterMovementIntents ANinjaGASPCharacter::GetMovementIntents() const
 {
 	return MovementIntents;
@@ -223,21 +183,103 @@ FCharacterMovementIntents ANinjaGASPCharacter::GetMovementIntents() const
 void ANinjaGASPCharacter::SetMovementIntents(const FCharacterMovementIntents NewMovementIntents)
 {
 	// Predict locally. Make sure to replicate via the server as needed.
-	MovementIntents = NewMovementIntents;
-	if (IsLocallyControlled() && !HasAuthority())
+	if (IsLocallyControlled() || HasAuthority())
 	{
-		Server_SetMovementIntents(NewMovementIntents);
+		const FCharacterMovementIntents PreviousMovementIntents = MovementIntents;
+		MovementIntents = NewMovementIntents;
+		OnRep_MovementIntents(PreviousMovementIntents);
+
+		if (!HasAuthority())
+		{
+			// Local player, without authority, the server has to replicate.
+			Server_SetMovementIntents(NewMovementIntents);	
+		}
 	}
 }
 
 void ANinjaGASPCharacter::Server_SetMovementIntents_Implementation(const FCharacterMovementIntents InputStateSettings)
 {
-	MovementIntents = InputStateSettings;
+	SetMovementIntents(InputStateSettings);
 }
 
 bool ANinjaGASPCharacter::Server_SetMovementIntents_Validate(const FCharacterMovementIntents InputStateSettings)
 {
 	return true;
+}
+
+void ANinjaGASPCharacter::OnRep_MovementIntents(const FCharacterMovementIntents OldMovementIntents)
+{
+	if (MovementIntents.bWantsToStrafe != OldMovementIntents.bWantsToStrafe)
+	{
+		UCharacterMovementComponent* CharMovement = GetCharacterMovement();
+		if (IsValid(CharMovement))
+		{
+			// If we are strafing, then the CMC should not orient to movement.
+			CharMovement->bOrientRotationToMovement = !MovementIntents.bWantsToStrafe;
+		}	
+	}
+}
+
+void ANinjaGASPCharacter::SetWalkingIntent_Implementation(const bool bWantsToWalk)
+{
+	if (MovementIntents.bWantsToWalk == bWantsToWalk)
+	{
+		return;
+	}
+	
+	// Technically, the Gameplay Ability should take care of this check, but we want to
+	// allow the walking intent to be set from other things like AI tasks, for example.
+	//
+	const bool bIsSprinting = Execute_IsSprinting(this);
+	if (!bIsSprinting)
+	{
+		const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForWalking(bWantsToWalk);
+		SetMovementIntents(Intents);
+	}
+}
+
+void ANinjaGASPCharacter::SetSprintingIntent_Implementation(const bool bWantsToSprint)
+{
+	if (MovementIntents.bWantsToSprint == bWantsToSprint)
+	{
+		return;
+	}
+
+	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForSprinting(bWantsToSprint);
+	SetMovementIntents(Intents);	
+}
+
+void ANinjaGASPCharacter::SetStrafingIntent_Implementation(const bool bWantsToStrafe)
+{
+	if (MovementIntents.bWantsToStrafe == bWantsToStrafe)
+	{
+		return;
+	}
+	
+	// We may or may not implement this, depending on whether the subclass/blueprint is a player or not. 
+	if (Implements<UPlayerCameraModeInterface>())
+	{
+		const EPlayerCameraMode CameraMode = IPlayerCameraModeInterface::Execute_GetCameraMode(this);
+		if (CameraMode == EPlayerCameraMode::FirstPerson && bWantsToStrafe == false)
+		{
+			// In first person mode, we cannot disable strafing.
+			return;
+		}
+	}
+
+	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForStrafing(bWantsToStrafe);
+	SetMovementIntents(Intents);
+}
+
+void ANinjaGASPCharacter::SetAimingIntent_Implementation(const bool bWantsToAim)
+{
+	if (MovementIntents.bWantsToAim == bWantsToAim)
+	{
+		return;
+	}
+
+	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForAiming(bWantsToAim);
+	SetMovementIntents(Intents);
 }
 
 bool ANinjaGASPCharacter::ShouldUseGameplayCameras() const
@@ -378,3 +420,4 @@ UNinjaEquipmentManagerComponent* ANinjaGASPCharacter::GetEquipmentManager_Implem
 {
 	return EquipmentManager;
 }
+

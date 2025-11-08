@@ -8,8 +8,6 @@
 
 UGASPAbility_Sprint::UGASPAbility_Sprint()
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	
 	FGameplayTagContainer Tags;
 	Tags.AddTagFast(Tag_GASP_Ability_Sprint);
 	SetAssetTags(Tags);

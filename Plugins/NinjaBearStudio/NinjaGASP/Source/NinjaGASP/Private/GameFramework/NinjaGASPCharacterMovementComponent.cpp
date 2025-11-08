@@ -5,6 +5,7 @@
 
 UNinjaGASPCharacterMovementComponent::UNinjaGASPCharacterMovementComponent()
 {
+	bOrientRotationToMovement = true;
 	NavMovementProperties.bUseAccelerationForPaths = true;
 }
 

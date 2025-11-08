@@ -6,8 +6,6 @@
 
 UGASPAbility_Walk::UGASPAbility_Walk()
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	
 	FGameplayTagContainer Tags;
 	Tags.AddTagFast(Tag_GASP_Ability_Walk);
 	SetAssetTags(Tags);
@@ -27,35 +25,25 @@ bool UGASPAbility_Walk::IsWalking() const
 	return false;
 }
 
-void UGASPAbility_Walk::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+bool UGASPAbility_Walk::ActivateLocomotionMode_Implementation()
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();
-	if (!IsWalking() && CommitAbility(Handle, ActorInfo, ActivationInfo))
+	if (!IsValid(MyAvatar) || !MyAvatar->Implements<UAdvancedCharacterMovementInterface>())
 	{
-		
-		static constexpr bool bWantsToWalk = true;
-		IAdvancedCharacterMovementInterface::Execute_SetWalkingIntent(MyAvatar, bWantsToWalk);
+		return false;
 	}
-	else
-	{
-		static constexpr bool bReplicateCancel = true;
-		CancelAbility(Handle, ActorInfo, ActivationInfo, bReplicateCancel);
-	}
+	
+	static constexpr bool bWantsToWalk = true;
+	IAdvancedCharacterMovementInterface::Execute_SetWalkingIntent(MyAvatar, bWantsToWalk);
+	return true;
 }
 
-void UGASPAbility_Walk::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo, const bool bReplicateEndAbility, const bool bWasCancelled)
+void UGASPAbility_Walk::DeactivateLocomotionMode_Implementation()
 {
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();
-	if (IsWalking())
+	if (IsValid(MyAvatar) && MyAvatar->Implements<UAdvancedCharacterMovementInterface>())
 	{
 		static constexpr bool bWantsToWalk = false;
 		IAdvancedCharacterMovementInterface::Execute_SetWalkingIntent(MyAvatar, bWantsToWalk);
 	}
-	
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

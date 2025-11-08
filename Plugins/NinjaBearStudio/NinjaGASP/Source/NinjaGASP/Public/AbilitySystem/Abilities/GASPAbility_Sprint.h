@@ -2,15 +2,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/NinjaGASPBaseLocomotionCostAbility.h"
+#include "AbilitySystem/NinjaGASPBaseLocomotionWithCostAbility.h"
 #include "GASPAbility_Sprint.generated.h"
 
 /**
- * Integrates with the Advanced Movement Interface to set the movement mode to sprint.
+ * Integrates with the Advanced Movement Interface to set the sprint intent.
  * This ability supports cost (e.g. "stamina consumption").
  */
 UCLASS()
-class NINJAGASP_API UGASPAbility_Sprint : public UNinjaGASPBaseLocomotionCostAbility
+class NINJAGASP_API UGASPAbility_Sprint : public UNinjaGASPBaseLocomotionWithCostAbility
 {
 	
 	GENERATED_BODY()

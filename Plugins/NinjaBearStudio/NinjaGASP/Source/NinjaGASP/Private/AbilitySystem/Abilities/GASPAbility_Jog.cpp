@@ -8,14 +8,12 @@
 
 UGASPAbility_Jog::UGASPAbility_Jog()
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	
 	FGameplayTagContainer Tags;
 	Tags.AddTagFast(Tag_GASP_Ability_Jog);
 	SetAssetTags(Tags);
 
 	ActivationOwnedTags.AddTagFast(Tag_Combat_Effect_Cancel_Regeneration_Stamina);
-	
+
 	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Sprint);
 	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Walk);
 

@@ -72,6 +72,10 @@ public:
 	// -- End Inventory/Equipment implementation
 
 	// -- Begin Advanced Movement implementation
+	virtual void SetWalkingIntent_Implementation(bool bWantsToWalk) override;
+	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) override;
+	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) override;
+	virtual void SetAimingIntent_Implementation(bool bWantsToAim) override;
 	virtual bool HasJustLanded_Implementation() const override { return bJustLanded; }
 	virtual FVector GetLandVelocity_Implementation() const override { return LandedVelocity; }
 	// -- End Advanced Movement implementation
@@ -168,15 +172,6 @@ protected:
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();
 	
-	/** Setups the character movement for bots and player characters. */
-	void SetupCharacterMovement();
-	
-	/** Configures movement-related features for an AI controlled pawn. */
-	virtual void SetupBotMovement();
-
-	/** Configures movement-related features for a Player controlled pawn. */
-	virtual void SetupPlayerMovement();
-	
 	/**
 	 * Initializes the camera, either Gameplay Camera or Camera Component.
 	 * 
@@ -232,6 +227,13 @@ protected:
 	void HandleCharacterLanded(FVector Velocity);
 
 	/**
+	 * Reacts to changes in the movement intents.
+	 * Includes the previous version for detailed comparison.
+	 */
+	UFUNCTION()
+	virtual void OnRep_MovementIntents(FCharacterMovementIntents OldMovementIntents);
+	
+	/**
 	 * Routes the input state through the server.
 	 * Most likely incoming from "SetMovementIntents".
 	 */
@@ -253,7 +255,7 @@ private:
 	FTimerHandle LandedResetTimerHandle;
 
 	/** Aggregation of current input flags. */
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_MovementIntents)
 	FCharacterMovementIntents MovementIntents;
 	
 	/** Registers all stimuli sources for this character. */
