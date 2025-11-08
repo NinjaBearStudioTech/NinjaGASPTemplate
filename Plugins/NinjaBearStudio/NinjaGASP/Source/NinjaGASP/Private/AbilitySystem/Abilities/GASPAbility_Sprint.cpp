@@ -2,6 +2,7 @@
 #include "AbilitySystem/Abilities/GASPAbility_Sprint.h"
 
 #include "AbilitySystemComponent.h"
+#include "NinjaCombatTags.h"
 #include "NinjaGASPTags.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
 
@@ -12,6 +13,11 @@ UGASPAbility_Sprint::UGASPAbility_Sprint()
 	FGameplayTagContainer Tags;
 	Tags.AddTagFast(Tag_GASP_Ability_Sprint);
 	SetAssetTags(Tags);
+
+	ActivationOwnedTags.AddTagFast(Tag_Combat_Effect_Cancel_Regeneration_Stamina);
+	
+	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Jog);
+	CancelAbilitiesWithTag.AddTagFast(Tag_GASP_Ability_Walk);
 }
 
 bool UGASPAbility_Sprint::IsSprinting() const

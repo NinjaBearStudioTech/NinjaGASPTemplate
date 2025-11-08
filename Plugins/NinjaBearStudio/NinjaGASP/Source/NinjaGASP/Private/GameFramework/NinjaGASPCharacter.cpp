@@ -13,6 +13,7 @@
 #include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Net/UnrealNetwork.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Hearing.h"
@@ -36,6 +37,7 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	GameplayCameraConsoleVariable = TEXT("DDCVar.NewGameplayCameraSystem.Enable");
 	LandedVelocity = FVector::ZeroVector;
 	LandingResetTime = 0.3f;
+	MovementIntents = FCharacterMovementIntents();
 
 	const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName(); 
 	GetMesh()->ComponentTags.Add(PrimaryMeshTag);
@@ -87,6 +89,12 @@ void ANinjaGASPCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorld()->GetTimerManager().ClearAllTimersForObject(this);
 	Super::EndPlay(EndPlayReason);
+}
+
+void ANinjaGASPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(ThisClass, MovementIntents, COND_SkipOwner);
 }
 
 void ANinjaGASPCharacter::GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const
@@ -205,6 +213,31 @@ void ANinjaGASPCharacter::SetupPlayerMovement()
 	{
 		CharMovement->bOrientRotationToMovement = false;
 	}	
+}
+
+FCharacterMovementIntents ANinjaGASPCharacter::GetMovementIntents() const
+{
+	return MovementIntents;
+}
+
+void ANinjaGASPCharacter::SetMovementIntents(const FCharacterMovementIntents NewMovementIntents)
+{
+	// Predict locally. Make sure to replicate via the server as needed.
+	MovementIntents = NewMovementIntents;
+	if (IsLocallyControlled() && !HasAuthority())
+	{
+		Server_SetMovementIntents(NewMovementIntents);
+	}
+}
+
+void ANinjaGASPCharacter::Server_SetMovementIntents_Implementation(const FCharacterMovementIntents InputStateSettings)
+{
+	MovementIntents = InputStateSettings;
+}
+
+bool ANinjaGASPCharacter::Server_SetMovementIntents_Validate(const FCharacterMovementIntents InputStateSettings)
+{
+	return true;
 }
 
 bool ANinjaGASPCharacter::ShouldUseGameplayCameras() const

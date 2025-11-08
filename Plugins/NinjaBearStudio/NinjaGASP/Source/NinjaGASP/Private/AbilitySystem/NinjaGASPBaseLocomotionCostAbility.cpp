@@ -9,7 +9,7 @@
 UNinjaGASPBaseLocomotionCostAbility::UNinjaGASPBaseLocomotionCostAbility()
 {
 	bChangedLocomotionMode = false;
-	CostApplicationInterval = 0.05f;
+	CostApplicationInterval = 1.f;
 	MaxServerWaitTime = 1.5f;
 }
 

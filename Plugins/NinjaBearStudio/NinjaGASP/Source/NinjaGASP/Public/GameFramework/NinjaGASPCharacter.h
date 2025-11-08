@@ -11,6 +11,7 @@
 #include "Interfaces/InventorySystemInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
 #include "Interfaces/TraversalMovementInputInterface.h"
+#include "Types/FCharacterMovementIntents.h"
 #include "NinjaGASPCharacter.generated.h"
 
 class UAISense;
@@ -44,6 +45,7 @@ public:
 	virtual void UnPossessed() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const override;
 	virtual void OnRep_Controller() override;
 	virtual void OnJumped_Implementation() override;
@@ -73,6 +75,21 @@ public:
 	virtual bool HasJustLanded_Implementation() const override { return bJustLanded; }
 	virtual FVector GetLandVelocity_Implementation() const override { return LandedVelocity; }
 	// -- End Advanced Movement implementation
+
+	/**
+	 * Provides a copy of the current movement intents.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")	
+	FCharacterMovementIntents GetMovementIntents() const;
+	
+	/**
+	 * Updates the internal movement intents using the provided values.
+	 *
+	 * This will set the movement in the local player and server. If the local player is
+	 * not authoritative, then this function will also call the server via an RPC.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
+	void SetMovementIntents(FCharacterMovementIntents NewMovementIntents);
 	
 	/**
 	 * Checks if the character should use Gameplay Cameras, based on the cvar.
@@ -92,7 +109,7 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void ClearHeldObject();
-	virtual void ClearHeldObject_Implementation() {  }
+	virtual void ClearHeldObject_Implementation() { }
 	
 protected:
 
@@ -213,6 +230,13 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character")
 	void HandleCharacterLanded(FVector Velocity);
+
+	/**
+	 * Routes the input state through the server.
+	 * Most likely incoming from "SetMovementIntents".
+	 */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetMovementIntents(FCharacterMovementIntents InputStateSettings);
 	
 private:
 
@@ -227,6 +251,10 @@ private:
 
 	/** Timer handle that resets the landed flag. */
 	FTimerHandle LandedResetTimerHandle;
+
+	/** Aggregation of current input flags. */
+	UPROPERTY(Replicated)
+	FCharacterMovementIntents MovementIntents;
 	
 	/** Registers all stimuli sources for this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
