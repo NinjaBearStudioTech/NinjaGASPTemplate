@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Types/ECharacterGait.h"
+#include "Types/ECharacterMovementMode.h"
 #include "UObject/Interface.h"
 #include "AdvancedCharacterMovementInterface.generated.h"
 
@@ -31,7 +32,7 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	ECharacterGait GetCharacterGait() const;
 	virtual ECharacterGait GetCharacterGait_Implementation() const { return ECharacterGait::Run; }
-	
+
 	/**
 	 * Provides a vector with all walk speeds for the character.
 	 * X = Forward Speed; Y = Strafe Speed; Z = Backwards Speed.
@@ -157,6 +158,5 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
 	FVector GetLandVelocity() const;
-	
-};
 
+};

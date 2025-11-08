@@ -85,6 +85,8 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	Stance = ECharacterStance::Stand;
 	StanceOnLastFrame = ECharacterStance::Stand;
 
+	TraversalTransform = FTransform::Identity;
+	
 	TrajectoryGenerationDataWhenIdle = FPoseSearchTrajectoryData();
 	TrajectoryGenerationDataWhenIdle.RotateTowardsMovementSpeed = 0.f;
 	TrajectoryGenerationDataWhenIdle.MaxControllerYawRate = 100.f;
@@ -134,6 +136,16 @@ UNinjaGASPAnimInstance::UNinjaGASPAnimInstance()
 	CurrentTrajectoryTimeSample = FVector2D(0.f, 0.2f);
 	FutureTrajectoryTimeSample = FVector2D(0.4f, 0.5f);
 	AimOffsetCurveName = TEXT("Disable_AO");
+}
+
+FTransform UNinjaGASPAnimInstance::GetTraversalTransform_Implementation() const
+{
+	return TraversalTransform;
+}
+
+void UNinjaGASPAnimInstance::SetTraversalTransform_Implementation(const FTransform NewTransform)
+{
+	TraversalTransform = NewTransform;
 }
 
 FAnimInstanceProxy* UNinjaGASPAnimInstance::CreateAnimInstanceProxy()

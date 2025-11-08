@@ -9,6 +9,7 @@
 #include "Animation/TrajectoryTypes.h"
 #include "BoneControllers/AnimNode_OffsetRootBone.h"
 #include "BoneControllers/AnimNode_OrientationWarping.h"
+#include "Interfaces/TraversalActionTransformInterface.h"
 #include "PoseSearch/MotionMatchingAnimNodeLibrary.h"
 #include "PoseSearch/PoseSearchLibrary.h"
 #include "PoseSearch/PoseSearchTrajectoryLibrary.h"
@@ -104,7 +105,7 @@ protected:
  * hierarchy, potentially support variants for AI, Players, etc.
  */
 UCLASS()
-class NINJAGASP_API UNinjaGASPAnimInstance : public UAnimInstance
+class NINJAGASP_API UNinjaGASPAnimInstance : public UAnimInstance, public ITraversalActionTransformInterface
 {
 	
 	GENERATED_BODY()
@@ -225,6 +226,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "States")
 	ECharacterStance StanceOnLastFrame;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Traversal")
+	FTransform TraversalTransform;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trajectory")
 	FPoseSearchTrajectoryData TrajectoryGenerationDataWhenIdle;
 
@@ -356,6 +360,11 @@ public:
 	
 	UNinjaGASPAnimInstance();
 
+	// -- Begin TraversalActionTransform implementation
+	virtual FTransform GetTraversalTransform_Implementation() const override;
+	virtual void SetTraversalTransform_Implementation(FTransform NewTransform) override;
+	// -- End TraversalActionTransform implementation
+	
 	/**
 	 * Checks if the character is considered moving, based on velocity and trajectory.
 	 */
