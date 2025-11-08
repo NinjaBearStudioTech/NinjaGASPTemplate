@@ -23,6 +23,9 @@ public:
 		
 protected:
 
+	/** Tracks changes done in the locomotion mode. May affect the cooldown application. */
+	bool bChangedLocomotionMode;
+	
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
@@ -50,10 +53,5 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
 	void DeactivateLocomotionMode();
-	
-private:
-
-	/** Tracks changes done in the locomotion mode. May affect the cooldown application. */
-	bool bChangedLocomotionMode;
 	
 };

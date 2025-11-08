@@ -12,6 +12,7 @@
 #include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
 #include "Interfaces/PlayerCameraModeInterface.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
@@ -37,6 +38,7 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	DefaultMeleeEffectLevel = 1.f;
 	GameplayCameraConsoleVariable = TEXT("DDCVar.NewGameplayCameraSystem.Enable");
 	LandedVelocity = FVector::ZeroVector;
+	ActiveSprintAngle = 50.f;
 	LandingResetTime = 0.3f;
 	MovementIntents = FCharacterMovementIntents();
 
@@ -233,7 +235,8 @@ void ANinjaGASPCharacter::SetWalkingIntent_Implementation(const bool bWantsToWal
 	const bool bIsSprinting = Execute_IsSprinting(this);
 	if (!bIsSprinting)
 	{
-		const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForWalking(bWantsToWalk);
+		FCharacterMovementIntents Intents = MovementIntents;
+		Intents.bWantsToWalk = bWantsToWalk;
 		SetMovementIntents(Intents);
 	}
 }
@@ -245,8 +248,10 @@ void ANinjaGASPCharacter::SetSprintingIntent_Implementation(const bool bWantsToS
 		return;
 	}
 
-	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForSprinting(bWantsToSprint);
-	SetMovementIntents(Intents);	
+	FCharacterMovementIntents Intents = MovementIntents;
+	Intents.bWantsToSprint = bWantsToSprint;
+	Intents.bWantsToWalk = false;
+	SetMovementIntents(Intents);
 }
 
 void ANinjaGASPCharacter::SetStrafingIntent_Implementation(const bool bWantsToStrafe)
@@ -267,7 +272,8 @@ void ANinjaGASPCharacter::SetStrafingIntent_Implementation(const bool bWantsToSt
 		}
 	}
 
-	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForStrafing(bWantsToStrafe);
+	FCharacterMovementIntents Intents = MovementIntents;
+	Intents.bWantsToStrafe = bWantsToStrafe;
 	SetMovementIntents(Intents);
 }
 
@@ -278,8 +284,49 @@ void ANinjaGASPCharacter::SetAimingIntent_Implementation(const bool bWantsToAim)
 		return;
 	}
 
-	const FCharacterMovementIntents Intents = FCharacterMovementIntents::ForAiming(bWantsToAim);
+	FCharacterMovementIntents Intents = MovementIntents;
+	Intents.bWantsToAim = bWantsToAim;
 	SetMovementIntents(Intents);
+}
+
+bool ANinjaGASPCharacter::IsActivelySprinting_Implementation() const
+{
+	const bool bWantsToSprint = GetMovementIntents().bWantsToSprint;
+	if (!bWantsToSprint)
+	{
+		// No intent. We should not be sprinting.
+		return false;
+	}
+
+	const UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (IsValid(CMC) && CMC->bOrientRotationToMovement)
+	{
+		// We have the intent and we are moving forward. If we have velocity,
+		// then we can consider that the character is actively sprinting.
+		return CMC->Velocity.Size2D() > 0.f;
+	}
+
+	if (!IsValid(CMC))
+	{
+		// Sanity check as we should always have a CMC here (and we need one for this check).
+		// But if we don't have one for some reason, then skip the logic altogether.
+		return false;	
+	}
+	
+	const FVector Acceleration = IsLocallyControlled() ? CMC->GetPendingInputVector() : CMC->GetCurrentAcceleration();
+	if (Acceleration.IsNearlyZero())
+	{
+		// No meaningful acceleration.
+		return false;
+	}
+	
+	const FRotator GroundRotation = UKismetMathLibrary::Conv_VectorToRotator(Acceleration);
+	const FRotator ActualRotation = GetActorRotation();
+	const FRotator MovementDirection = UKismetMathLibrary::NormalizedDeltaRotator(ActualRotation, GroundRotation);
+
+	const float MovementDirectionYaw = FMath::Abs(MovementDirection.Yaw);
+	return MovementDirectionYaw < ActiveSprintAngle
+		&& CMC->Velocity.Size2D() > 0.f;
 }
 
 bool ANinjaGASPCharacter::ShouldUseGameplayCameras() const

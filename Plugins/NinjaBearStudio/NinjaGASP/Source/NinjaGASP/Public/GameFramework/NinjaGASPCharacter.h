@@ -76,6 +76,7 @@ public:
 	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) override;
 	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) override;
 	virtual void SetAimingIntent_Implementation(bool bWantsToAim) override;
+	virtual bool IsActivelySprinting_Implementation() const override;
 	virtual bool HasJustLanded_Implementation() const override { return bJustLanded; }
 	virtual FVector GetLandVelocity_Implementation() const override { return LandedVelocity; }
 	// -- End Advanced Movement implementation
@@ -165,6 +166,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Melee Combat", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float DefaultMeleeEffectLevel;
 
+	/** Absolute yaw we must be in to be considered actively sprinting. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float ActiveSprintAngle;
+	
 	/** Time to wait, before resetting the landed flag. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float LandingResetTime;

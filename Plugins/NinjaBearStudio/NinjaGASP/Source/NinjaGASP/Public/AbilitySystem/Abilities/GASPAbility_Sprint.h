@@ -28,6 +28,7 @@ public:
 
 protected:
 
+	virtual bool ShouldApplyCost_Implementation() const override;
 	virtual bool ActivateLocomotionMode_Implementation() override;
 	virtual void DeactivateLocomotionMode_Implementation() override;
 	

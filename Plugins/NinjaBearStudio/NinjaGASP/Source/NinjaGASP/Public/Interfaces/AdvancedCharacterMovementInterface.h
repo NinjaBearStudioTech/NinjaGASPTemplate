@@ -87,6 +87,16 @@ public:
 	virtual bool IsSprinting_Implementation() const { return false; }
 
 	/**
+	 * Checks if the character is actively sprinting.
+	 * 
+	 * This means the intent is set, but the character might be moving at an angle
+	 * that does not support sprinting, or not even moving at all.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")
+	bool IsActivelySprinting() const;
+	virtual bool IsActivelySprinting_Implementation() const { return true; }
+	
+	/**
 	 * Informs if the character is currently strafing.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "NBS|GASP|Advanced Character Movement Interface")

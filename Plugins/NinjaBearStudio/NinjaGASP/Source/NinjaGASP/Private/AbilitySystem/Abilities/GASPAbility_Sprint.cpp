@@ -29,6 +29,23 @@ bool UGASPAbility_Sprint::IsSprinting() const
 	return IAdvancedCharacterMovementInterface::Execute_IsSprinting(MyAvatar);
 }
 
+bool UGASPAbility_Sprint::ShouldApplyCost_Implementation() const
+{
+	const AActor* MyAvatar = GetAvatarActorFromActorInfo();
+	if (!IsValid(MyAvatar) || !MyAvatar->Implements<UAdvancedCharacterMovementInterface>())
+	{
+		// This is an odd scenario, but in this case keep the default ability behavior:
+		// Allow the cost to be applied normally and the ability to execute its logic.
+		//
+		return true;
+	}
+
+	// If the valid avatar implements the interface, then apply the cost if we are actually sprinting.
+	// Otherwise, the character has the intent active, but it's not actually sprinting.
+	//
+	return IAdvancedCharacterMovementInterface::Execute_IsActivelySprinting(MyAvatar);
+}
+
 bool UGASPAbility_Sprint::ActivateLocomotionMode_Implementation()
 {
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();

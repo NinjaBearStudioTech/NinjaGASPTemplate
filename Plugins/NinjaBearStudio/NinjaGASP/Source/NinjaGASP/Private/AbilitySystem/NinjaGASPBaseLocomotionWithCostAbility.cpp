@@ -21,14 +21,32 @@ void UNinjaGASPBaseLocomotionWithCostAbility::ActivateAbility(const FGameplayAbi
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	// Skip the parent, so we can readjust how cost is applied.
+	UNinjaGASGameplayAbility::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	// Initialize the recurring cost, only if we have a cost gameplay effect set.
-	// Otherwise, we want this base functionality to be transparent to subclasses.
-	//	
-	if (HasChangedLocomotionMode() && CostGameplayEffectClass != nullptr)
+	if (CostGameplayEffectClass != nullptr)
 	{
-		ScheduleNetSync();
+		const bool bHasBudget = ShouldApplyCost() ? CommitAbilityCost(Handle, ActorInfo, ActivationInfo) : true;
+		if (bHasBudget)
+		{
+			bChangedLocomotionMode = ActivateLocomotionMode();
+			if (bChangedLocomotionMode)
+			{
+				ScheduleNetSync();
+			}
+		}
+	}
+	else
+	{
+		// Activate right away without checking for the cost (not set).
+		bChangedLocomotionMode = ActivateLocomotionMode();
+	}
+
+	if (!bChangedLocomotionMode)
+	{
+		static constexpr bool bReplicateAbilityEnd = true;
+		static constexpr bool bWasCancelled = false;
+		EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateAbilityEnd, bWasCancelled);
 	}
 }
 
@@ -60,8 +78,9 @@ void UNinjaGASPBaseLocomotionWithCostAbility::OnServerSynchronized()
 	const FGameplayAbilitySpecHandle Handle = GetCurrentAbilitySpecHandle();
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	const FGameplayAbilityActivationInfo ActivationInfo = GetCurrentActivationInfo();
-	
-	if (CommitAbilityCost(Handle, ActorInfo, ActivationInfo) && CanKeepLocomotionModeActive())
+
+	const bool bHasBudget = ShouldApplyCost() ? CommitAbilityCost(Handle, ActorInfo, ActivationInfo) : true;
+	if (bHasBudget && CanKeepLocomotionModeActive())
 	{
 		ScheduleNetSync();
 		return;
@@ -70,6 +89,11 @@ void UNinjaGASPBaseLocomotionWithCostAbility::OnServerSynchronized()
 	static constexpr bool bReplicateAbilityEnd = true;
 	static constexpr bool bWasCancelled = false;
 	EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateAbilityEnd, bWasCancelled);
+}
+
+bool UNinjaGASPBaseLocomotionWithCostAbility::ShouldApplyCost_Implementation() const
+{
+	return true;
 }
 
 void UNinjaGASPBaseLocomotionWithCostAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,

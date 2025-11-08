@@ -57,6 +57,17 @@ protected:
 	void OnServerSynchronized();
 
 	/**
+	 * Checks if the cost should be applied on a re-sync.
+	 *
+	 * This is important for things like sprinting, where the **intent** might be active
+	 * (and thus the ability), but the character is not moving or the angle is not valid.
+	 *
+	 * This won't stop the ability, but won't apply the cost.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
+	bool ShouldApplyCost() const;
+	
+	/**
 	 * Confirms we can keep the locomotion active after a cost reapplication.
 	 * 
 	 * By default, follows the same logic as "CanActivateLocomotionMode", so you only
