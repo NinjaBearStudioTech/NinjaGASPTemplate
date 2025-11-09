@@ -3,6 +3,7 @@
 
 #include "NinjaGASPTags.h"
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
 #include "Components/NinjaCombatEquipmentAdapterComponent.h"
 #include "Components/NinjaCombatManagerComponent.h"
@@ -40,7 +41,9 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	LandedVelocity = FVector::ZeroVector;
 	ActiveSprintAngle = 50.f;
 	LandingResetTime = 0.3f;
+	TimeToResetTraversalCorrections = 0.2f;
 	MovementIntents = FCharacterMovementIntents();
+	TraversalActionSummary = FCharacterTraversalActionSummary(); 
 
 	const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName(); 
 	GetMesh()->ComponentTags.Add(PrimaryMeshTag);
@@ -96,7 +99,9 @@ void ANinjaGASPCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ANinjaGASPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
 	DOREPLIFETIME_CONDITION(ThisClass, MovementIntents, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(ThisClass, TraversalActionSummary, COND_SimulatedOnly);
 }
 
 void ANinjaGASPCharacter::GetActorEyesViewPoint(FVector& OutLocation, FRotator& OutRotation) const
@@ -332,6 +337,144 @@ bool ANinjaGASPCharacter::IsActivelySprinting_Implementation() const
 bool ANinjaGASPCharacter::ShouldUseGameplayCameras() const
 {
 	return UKismetSystemLibrary::GetConsoleVariableBoolValue(GameplayCameraConsoleVariable);
+}
+
+FCharacterTraversalActionSummary ANinjaGASPCharacter::GetActiveTraversalAction() const
+{
+	return TraversalActionSummary;
+}
+
+void ANinjaGASPCharacter::RegisterTraversalAction(const ECharacterTraversalAction ActionType, UPrimitiveComponent* Target)
+{
+	if (TraversalActionSummary.Action != ECharacterTraversalAction::None)
+	{
+		// Traversal action already happening!
+		return; 
+	}
+
+	if (ActionType == ECharacterTraversalAction::None || !IsValid(Target))
+	{
+		// Invalid input data.
+		return;
+	}
+
+	// Predict locally. Make sure to replicate via the server as needed.
+	if (IsLocallyControlled() || HasAuthority())
+	{
+		const FCharacterTraversalActionSummary OldSummary = TraversalActionSummary;
+		TraversalActionSummary.Action = ActionType;
+		TraversalActionSummary.Target = Target;
+		OnRep_TraversalAction(OldSummary);
+
+		if (!HasAuthority())
+		{
+			Server_RegisterTraversalAction(ActionType, Target);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::Server_RegisterTraversalAction_Implementation(const ECharacterTraversalAction ActionType, UPrimitiveComponent* Target)
+{
+	RegisterTraversalAction(ActionType, Target);
+}
+
+bool ANinjaGASPCharacter::Server_RegisterTraversalAction_Validate(const ECharacterTraversalAction ActionType, UPrimitiveComponent* Target)
+{
+	return true;
+}
+
+void ANinjaGASPCharacter::ClearTraversalAction()
+{
+	if (TraversalActionSummary.Action == ECharacterTraversalAction::None)
+	{
+		// No traversal action happening.
+		return; 
+	}
+
+	// Predict locally. Make sure to replicate via the server as needed.
+	if (IsLocallyControlled() || HasAuthority())
+	{
+		const FCharacterTraversalActionSummary OldSummary = TraversalActionSummary; 
+		TraversalActionSummary.Action = ECharacterTraversalAction::None;
+		TraversalActionSummary.Target = nullptr;
+		OnRep_TraversalAction(OldSummary);
+
+		if (!HasAuthority())
+		{
+			Server_ClearTraversalAction();
+		}
+	}
+}
+
+void ANinjaGASPCharacter::Server_ClearTraversalAction_Implementation()
+{
+	ClearTraversalAction();
+}
+
+bool ANinjaGASPCharacter::Server_ClearTraversalAction_Validate()
+{
+	return true;
+}
+
+void ANinjaGASPCharacter::OnRep_TraversalAction(const FCharacterTraversalActionSummary OldTraversalActionSummary)
+{
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (IsValid(CMC))
+	{
+		const bool bOldHadTraversal = OldTraversalActionSummary.Action != ECharacterTraversalAction::None;
+		const bool bNewHasTraversal = TraversalActionSummary.Action != ECharacterTraversalAction::None;
+
+		if (!bOldHadTraversal && bNewHasTraversal)
+		{
+			CMC->bIgnoreClientMovementErrorChecksAndCorrection = true;
+			CMC->bServerAcceptClientAuthoritativePosition = true;
+			CMC->SetMovementMode(MOVE_Flying);
+		}
+
+		else if (bOldHadTraversal && !bNewHasTraversal)
+		{
+			// Reset correction flags after a short delay.
+			const FTimerDelegate TimerDelegate = FTimerDelegate::CreateWeakLambda(this, [CMC]()
+			{
+				if (IsValid(CMC))
+				{
+					CMC->bIgnoreClientMovementErrorChecksAndCorrection = false;
+					CMC->bServerAcceptClientAuthoritativePosition = false;
+				}
+			});
+
+			GetWorld()->GetTimerManager().SetTimer(TraversalCorrectionTimerHandle, TimerDelegate, TimeToResetTraversalCorrections, false);
+
+			// Decide which movement mode we go back to, based on the *previous* action.
+			EMovementMode NewMovementMode = MOVE_Walking;
+			if (OldTraversalActionSummary.Action == ECharacterTraversalAction::Vault)
+			{
+				NewMovementMode = MOVE_Falling;
+			}
+
+			CMC->SetMovementMode(NewMovementMode);
+		}
+	}
+
+	// If we previously had a target, and either traversal ended or the target changed, then stop ignoring collisions.
+	if (OldTraversalActionSummary.Target.IsValid() && OldTraversalActionSummary.Target->IsValidLowLevelFast())
+	{
+		const bool bNewHasTraversal = TraversalActionSummary.Action != ECharacterTraversalAction::None;
+		const bool bTargetChanged = TraversalActionSummary.Target.Get() != OldTraversalActionSummary.Target.Get();
+
+		if (!bNewHasTraversal || bTargetChanged)
+		{
+			static constexpr bool bShouldIgnore = false;
+			GetCapsuleComponent()->IgnoreComponentWhenMoving(OldTraversalActionSummary.Target.Get(), bShouldIgnore);
+		}
+	}
+
+	// If we now have an active traversal and a valid target, ignore it while moving.
+	if (TraversalActionSummary.Action != ECharacterTraversalAction::None && TraversalActionSummary.Target.IsValid() && TraversalActionSummary.Target->IsValidLowLevelFast())
+	{
+		static constexpr bool bShouldIgnore = true;
+		GetCapsuleComponent()->IgnoreComponentWhenMoving(TraversalActionSummary.Target.Get(),bShouldIgnore);
+	}
 }
 
 void ANinjaGASPCharacter::SetupPlayerCamera_Implementation()

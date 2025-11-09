@@ -11,7 +11,9 @@
 #include "Interfaces/InventorySystemInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
 #include "Interfaces/TraversalMovementInputInterface.h"
+#include "Types/ECharacterTraversalAction.h"
 #include "Types/FCharacterMovementIntents.h"
+#include "Types/FCharacterTraversalActionSummary.h"
 #include "NinjaGASPCharacter.generated.h"
 
 class UAISense;
@@ -101,6 +103,24 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
 	bool ShouldUseGameplayCameras() const;
+
+	/**
+	 * Informs if there is an active traversal action currently registered.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
+	FCharacterTraversalActionSummary GetActiveTraversalAction() const;
+	
+	/**
+	 * Registers a traversal action with a given target.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
+	void RegisterTraversalAction(ECharacterTraversalAction ActionType, UPrimitiveComponent* Target);
+
+	/**
+	 * Notifies the end of any ongoing traversal action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
+	void ClearTraversalAction();
 	
 	/**
 	 * Clears any object directly held by the character.
@@ -173,6 +193,10 @@ protected:
 	/** Time to wait, before resetting the landed flag. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float LandingResetTime;
+
+	/** Interval to reset corrections after a traversal movement ends. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float TimeToResetTraversalCorrections;
 	
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();
@@ -237,6 +261,12 @@ protected:
 	 */
 	UFUNCTION()
 	virtual void OnRep_MovementIntents(FCharacterMovementIntents OldMovementIntents);
+
+	/**
+	 * Reacts to changes in the traversal action summary.
+	 */
+	UFUNCTION()
+	virtual void OnRep_TraversalAction(FCharacterTraversalActionSummary OldTraversalActionSummary);
 	
 	/**
 	 * Routes the input state through the server.
@@ -244,6 +274,20 @@ protected:
 	 */
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetMovementIntents(FCharacterMovementIntents InputStateSettings);
+
+	/**
+	 * Routes the traversal action through the server.
+	 * Most likely incoming from "RegisterTraversalAction".
+	 */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_RegisterTraversalAction(ECharacterTraversalAction ActionType, UPrimitiveComponent* Target);
+
+	/**
+	 * Routes the traversal action through the server.
+	 * Most likely incoming from "ClearTraversalAction".
+	 */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_ClearTraversalAction();
 	
 private:
 
@@ -259,10 +303,17 @@ private:
 	/** Timer handle that resets the landed flag. */
 	FTimerHandle LandedResetTimerHandle;
 
+	/** Timer handle that resets the corrections from traversal. */
+	FTimerHandle TraversalCorrectionTimerHandle;
+	
 	/** Aggregation of current input flags. */
 	UPROPERTY(ReplicatedUsing = OnRep_MovementIntents)
 	FCharacterMovementIntents MovementIntents;
-	
+
+	/** Summary of the current traversal action. */
+	UPROPERTY(ReplicatedUsing = OnRep_TraversalAction)
+	FCharacterTraversalActionSummary TraversalActionSummary;
+
 	/** Registers all stimuli sources for this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> StimuliSource;

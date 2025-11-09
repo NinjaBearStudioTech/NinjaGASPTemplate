@@ -1,5 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
+// Ninja Bear Studio Inc., all rights reserved.
 #pragma once
 
 #include "Modules/ModuleManager.h"
