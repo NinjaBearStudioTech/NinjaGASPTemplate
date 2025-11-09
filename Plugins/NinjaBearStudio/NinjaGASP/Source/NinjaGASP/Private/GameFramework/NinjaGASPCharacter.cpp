@@ -43,7 +43,9 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	LandingResetTime = 0.3f;
 	TimeToResetTraversalCorrections = 0.2f;
 	MovementIntents = FCharacterMovementIntents();
-	TraversalActionSummary = FCharacterTraversalActionSummary(); 
+	TraversalActionSummary = FCharacterTraversalActionSummary();
+	AnimationOverlayBase = ECharacterOverlayBase::GASP;
+	AnimationOverlayPose = ECharacterOverlayPose::Default;
 
 	const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName(); 
 	GetMesh()->ComponentTags.Add(PrimaryMeshTag);

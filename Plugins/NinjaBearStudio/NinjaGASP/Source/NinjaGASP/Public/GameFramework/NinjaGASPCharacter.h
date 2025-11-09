@@ -11,6 +11,8 @@
 #include "Interfaces/InventorySystemInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
 #include "Interfaces/TraversalMovementInputInterface.h"
+#include "Types/ECharacterOverlayBase.h"
+#include "Types/ECharacterOverlayPose.h"
 #include "Types/ECharacterTraversalAction.h"
 #include "Types/FCharacterMovementIntents.h"
 #include "Types/FCharacterTraversalActionSummary.h"
@@ -29,7 +31,7 @@ class UNinjaEquipmentManagerComponent;
 /**
  * Base character, with functionality that can be shared between players and AI.
  */
-UCLASS(Abstract)
+UCLASS()
 class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface,
 	public IAdvancedCharacterMovementInterface, public ITraversalMovementInputInterface, public ICombatSystemInterface, 
 	public ICombatMeleeInterface, public ICombatRangedInterface, public IInventorySystemInterface, public IEquipmentSystemInterface
@@ -121,6 +123,30 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
 	void ClearTraversalAction();
+
+	/**
+	 * Returns the overlay value that affects the base animation layer.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
+	ECharacterOverlayBase GetAnimationOverlayBase() const { return AnimationOverlayBase; }
+
+	/**
+	 * Sets the overlay value that affects the base animation layer.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
+	void SetAnimationOverlayBase(const ECharacterOverlayBase NewBase) { AnimationOverlayBase = NewBase; }
+	
+	/**
+	 * Returns the overlay value that affects the pose animation layer.
+	 */
+	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
+	ECharacterOverlayPose GetAnimationOverlayPose() const { return AnimationOverlayPose; }
+
+	/**
+	 * Sets the overlay value that affects the pose animation layer.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
+	void SetAnimationOverlayPose(const ECharacterOverlayPose NewPose) { AnimationOverlayPose = NewPose; }
 	
 	/**
 	 * Clears any object directly held by the character.
@@ -157,6 +183,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI", meta = (EditCondition = bOverrideEyesViewPointForSightPerception))
 	FName SightSenseSourceLocationName;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
+	ECharacterOverlayBase AnimationOverlayBase;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
+	ECharacterOverlayPose AnimationOverlayPose;
+	
 	/** Console variable that toggles Gameplay Camera and Camera Component setups. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Player Camera")
 	FString GameplayCameraConsoleVariable;

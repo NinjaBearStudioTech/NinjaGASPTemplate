@@ -15,7 +15,7 @@ class UAbilitySystemComponent;
  * It also modifies the base class to support an Ability System Component assigned
  * to the Player State, covering the expected deferred initialization.
  */
-UCLASS(Abstract)
+UCLASS()
 class NINJAGASP_API ANinjaGASPPlayerCharacter : public ANinjaGASPCharacter, public IPlayerCameraModeInterface
 {
 	
