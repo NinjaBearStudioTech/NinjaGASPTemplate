@@ -1,7 +1,10 @@
 ﻿// Ninja Bear Studio Inc., all rights reserved.
 #include "GameFramework/NinjaGASPCharacter.h"
 
+#include "Chooser.h"
+#include "ChooserFunctionLibrary.h"
 #include "NinjaGASPTags.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/NinjaCombatComboManagerComponent.h"
@@ -10,8 +13,11 @@
 #include "Components/NinjaCombatMotionWarpingComponent.h"
 #include "Components/NinjaEquipmentManagerComponent.h"
 #include "Components/NinjaInventoryManagerComponent.h"
+#include "Data/NinjaGASPBaseOverlayDataAsset.h"
+#include "Data/NinjaGASPPoseOverlayDataAsset.h"
 #include "GameFramework/GameplayCameraComponent.h"
 #include "GameFramework/NinjaGASPCharacterMovementComponent.h"
+#include "Interfaces/EquipmentAnimationInterface.h"
 #include "Interfaces/PlayerCameraModeInterface.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -44,8 +50,8 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	TimeToResetTraversalCorrections = 0.2f;
 	MovementIntents = FCharacterMovementIntents();
 	TraversalActionSummary = FCharacterTraversalActionSummary();
-	AnimationOverlayBase = ECharacterOverlayBase::GASP;
-	AnimationOverlayPose = ECharacterOverlayPose::Default;
+	BaseAnimationOverlay = ECharacterOverlayBase::GASP;
+	PoseAnimationOverlay = ECharacterOverlayPose::Default;
 
 	const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName(); 
 	GetMesh()->ComponentTags.Add(PrimaryMeshTag);
@@ -89,6 +95,9 @@ void ANinjaGASPCharacter::UnPossessed()
 void ANinjaGASPCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ConsolidateBaseAnimationLayer();
+	ConsolidatePoseAnimationLayer();
 	RegisterStimuliSources();
 }
 
@@ -102,6 +111,9 @@ void ANinjaGASPCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(ThisClass, BaseAnimationOverlay);
+	DOREPLIFETIME(ThisClass, PoseAnimationOverlay);
+	
 	DOREPLIFETIME_CONDITION(ThisClass, MovementIntents, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(ThisClass, TraversalActionSummary, COND_SimulatedOnly);
 }
@@ -479,6 +491,261 @@ void ANinjaGASPCharacter::OnRep_TraversalAction(const FCharacterTraversalActionS
 	}
 }
 
+void ANinjaGASPCharacter::SetBaseAnimationOverlay(const ECharacterOverlayBase NewBase)
+{
+	if (BaseAnimationOverlay == NewBase)
+	{
+		return; 
+	}
+
+	// We want to support local prediction, but the server will still be authoritative.
+	// This means setting this on the server will still set this on the local client.
+	//
+	if (IsLocallyControlled() || HasAuthority())
+	{
+		BaseAnimationOverlay = NewBase;
+		OnRep_BaseAnimationOverlay();
+
+		if (!HasAuthority())
+		{
+			Server_SetBaseAnimationOverlay(NewBase);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::Server_SetBaseAnimationOverlay_Implementation(ECharacterOverlayBase NewBase)
+{
+	SetBaseAnimationOverlay(NewBase);
+}
+
+bool ANinjaGASPCharacter::Server_SetBaseAnimationOverlay_Validate(ECharacterOverlayBase NewBase)
+{
+	return true;
+}
+
+void ANinjaGASPCharacter::OnRep_BaseAnimationOverlay()
+{
+	ConsolidateBaseAnimationLayer();
+}
+
+void ANinjaGASPCharacter::ConsolidateBaseAnimationLayer()
+{
+	// We track this because we support both prediction and server-replication to local client.
+	// But we don't want to apply the layer twice, when prediction + replication happens.
+	//
+	if (LastProcessedBaseOverlay != BaseAnimationOverlay)
+	{
+		LastProcessedBaseOverlay = BaseAnimationOverlay;
+		HandleBaseAnimationOverlayChanged(BaseAnimationOverlay);
+	}	
+}
+
+void ANinjaGASPCharacter::HandleBaseAnimationOverlayChanged_Implementation(ECharacterOverlayBase CurrentBase)
+{
+	if (IsValid(BaseOverlayChooserTable))
+	{
+		FChooserEvaluationContext ChooserEvaluationContext = UChooserFunctionLibrary::MakeChooserEvaluationContext();
+		ChooserEvaluationContext.AddObjectParam(this);
+		
+		const FInstancedStruct ChooserInstance = UChooserFunctionLibrary::MakeEvaluateChooser(BaseOverlayChooserTable);
+		const UObject* ChooserObject = UChooserFunctionLibrary::EvaluateObjectChooserBase(ChooserEvaluationContext, ChooserInstance, UNinjaGASPBaseOverlayDataAsset::StaticClass());
+		const UNinjaGASPBaseOverlayDataAsset* BaseOverlayData = Cast<UNinjaGASPBaseOverlayDataAsset>(ChooserObject); 
+		
+		if (IsValid(BaseOverlayData))
+		{
+			const TSubclassOf<UAnimInstance> LayerClass = BaseOverlayData->OverlayAnimationClass;
+			LinkOverlayAnimationLayer(LayerClass);
+			
+			const FCharacterOverlayActivationAnimation Params = BaseOverlayData->ActivationMontage;
+			PlaySlotAnimationAsDynamicMontage(Params);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::SetPoseAnimationOverlay(const ECharacterOverlayPose NewPose)
+{
+	if (PoseAnimationOverlay == NewPose)
+	{
+		return; 
+	}
+
+	// We want to support local prediction, but the server will still be authoritative.
+	// This means setting this on the server will still set this on the local client.
+	//
+	if (IsLocallyControlled() || HasAuthority())
+	{
+		PoseAnimationOverlay = NewPose;
+		OnRep_PoseAnimationOverlay();
+
+		if (!HasAuthority())
+		{
+			Server_SetPoseAnimationOverlay(NewPose);
+		}
+	}	
+}
+
+void ANinjaGASPCharacter::Server_SetPoseAnimationOverlay_Implementation(ECharacterOverlayPose NewPose)
+{
+	SetPoseAnimationOverlay(NewPose);
+}
+
+bool ANinjaGASPCharacter::Server_SetPoseAnimationOverlay_Validate(ECharacterOverlayPose NewPose)
+{
+	return true;
+}
+
+void ANinjaGASPCharacter::OnRep_PoseAnimationOverlay()
+{
+	ConsolidatePoseAnimationLayer();
+}
+
+void ANinjaGASPCharacter::ConsolidatePoseAnimationLayer()
+{
+	// We track this because we support both prediction and server-replication to local client.
+	// But we don't want to apply the layer twice, when prediction + replication happens.
+	//
+	if (LastProcessedPoseOverlay != PoseAnimationOverlay)
+	{
+		LastProcessedPoseOverlay = PoseAnimationOverlay;
+		HandlePoseAnimationOverlayChanged(PoseAnimationOverlay);
+	}		
+}
+
+void ANinjaGASPCharacter::HandlePoseAnimationOverlayChanged_Implementation(ECharacterOverlayPose CurrentPose)
+{
+	if (IsValid(PoseOverlayChooserTable))
+	{
+		FChooserEvaluationContext ChooserEvaluationContext = UChooserFunctionLibrary::MakeChooserEvaluationContext();
+		ChooserEvaluationContext.AddObjectParam(this);
+		
+		const FInstancedStruct ChooserInstance = UChooserFunctionLibrary::MakeEvaluateChooser(PoseOverlayChooserTable);
+		const UObject* ChooserObject = UChooserFunctionLibrary::EvaluateObjectChooserBase(ChooserEvaluationContext, ChooserInstance, UNinjaGASPPoseOverlayDataAsset::StaticClass());
+		const UNinjaGASPPoseOverlayDataAsset* PoseOverlayData = Cast<UNinjaGASPPoseOverlayDataAsset>(ChooserObject); 
+		
+		if (IsValid(PoseOverlayData))
+		{
+			const TSubclassOf<UAnimInstance> LayerClass = PoseOverlayData->OverlayAnimationClass;
+			LinkOverlayAnimationLayer(LayerClass);
+			
+			const FCharacterOverlayActivationAnimation Params = PoseOverlayData->ActivationMontage;
+			PlaySlotAnimationAsDynamicMontage(Params);
+
+			ClearHeldObject();
+			AttachPoseObjectToHand(PoseOverlayData);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::LinkOverlayAnimationLayer(const TSubclassOf<UAnimInstance> LayerClass) const
+{
+	UAnimInstance* TargetAnimInstance = Execute_GetCombatAnimInstance(this);
+	if (IsValid(TargetAnimInstance) && LayerClass)
+	{
+		TargetAnimInstance->LinkAnimClassLayers(LayerClass);
+	}
+}
+
+void ANinjaGASPCharacter::PlaySlotAnimationAsDynamicMontage(const FCharacterOverlayActivationAnimation& Params) const
+{
+	UAnimInstance* TargetAnimInstance = Execute_GetCombatAnimInstance(this);
+	if (IsValid(TargetAnimInstance))
+	{
+		UAnimSequenceBase* ActivationAnimation = Params.DynamicAnimation;
+		if (IsValid(ActivationAnimation))
+		{
+			TargetAnimInstance->PlaySlotAnimationAsDynamicMontage(ActivationAnimation, Params.SlotName, Params.BlendInTime,
+				Params.BlendOutTime, Params.PlayRate, Params.LoopCount, Params.BlendOutTriggerTime, Params.StartTime);
+		}		
+	}
+}
+
+void ANinjaGASPCharacter::AttachPoseObjectToHand_Implementation(const UNinjaGASPPoseOverlayDataAsset* PoseData)
+{
+	if (!IsValid(PoseData) || PoseData->OverlayItemType == EPoseOverlayItemType::None)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* RootMesh = Execute_GetCombatMesh(this);
+	if (!IsValid(RootMesh))
+	{
+		return;
+	}
+
+	UMeshComponent* NewComponent = nullptr;
+	
+	if (PoseData->OverlayItemType == EPoseOverlayItemType::StaticMesh)
+	{
+		UStaticMeshComponent* NewStaticMesh = NewObject<UStaticMeshComponent>(this);
+		NewStaticMesh->ComponentTags.Add(Tag_GASP_Component_Mesh_Overlay_Static.GetTag().GetTagName());
+		NewStaticMesh->SetStaticMesh(PoseData->StaticMesh);
+		NewComponent = NewStaticMesh; 
+	}
+	else if (PoseData->OverlayItemType == EPoseOverlayItemType::SkeletalMesh)
+	{
+		USkeletalMeshComponent* NewSkeletalMesh = NewObject<USkeletalMeshComponent>(this);
+		NewSkeletalMesh->ComponentTags.Add(Tag_GASP_Component_Mesh_Overlay_Skeletal.GetTag().GetTagName());
+		NewSkeletalMesh->SetSkeletalMesh(PoseData->SkeletalMesh, true);
+
+		if (PoseData->SkeletalMeshAnimClass)
+		{
+			NewSkeletalMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+			NewSkeletalMesh->SetAnimInstanceClass(PoseData->SkeletalMeshAnimClass);
+			SetOwnerToPoseOverlayAnimationInstance(NewSkeletalMesh);
+		}
+		
+		NewComponent = NewSkeletalMesh; 
+	}
+
+	if (IsValid(NewComponent))
+	{
+		NewComponent->AttachToComponent(RootMesh, FAttachmentTransformRules::SnapToTargetIncludingScale, PoseData->SocketName);
+		NewComponent->RegisterComponent();
+		NewComponent->Activate();
+		FinishAndRegisterComponent(NewComponent);
+	}
+}
+
+void ANinjaGASPCharacter::SetOwnerToPoseOverlayAnimationInstance(USkeletalMeshComponent* PoseItemMesh)
+{
+	if (IsValid(PoseItemMesh))
+	{
+		UAnimInstance* NewAnimInstance = PoseItemMesh->GetAnimInstance();
+		if (NewAnimInstance)
+		{
+			if (NewAnimInstance->Implements<UEquipmentAnimationInterface>())
+			{
+				// Realistically, this should be handled by the equipment instance.
+				IEquipmentAnimationInterface::Execute_SetInventoryAvatar(NewAnimInstance, this);
+			}
+		}
+		else
+		{
+			const FTimerDelegate EquipmentDataDelegate = FTimerDelegate::CreateUObject(this, &ThisClass::SetOwnerToPoseOverlayAnimationInstance, PoseItemMesh);
+			GetWorld()->GetTimerManager().SetTimerForNextTick(EquipmentDataDelegate);
+		}
+	}
+}
+
+void ANinjaGASPCharacter::ClearHeldObject_Implementation()
+{
+	auto SeekAndDestroy = [&](const FName TagName)
+	{
+		TArray<UActorComponent*> Components = GetComponentsByTag(UActorComponent::StaticClass(), TagName);
+		for (UActorComponent* Component : Components)
+		{
+			Component->UnregisterComponent();
+			Component->DestroyComponent();
+		}
+	};
+	
+	const FName SkeletalMeshTag = Tag_GASP_Component_Mesh_Overlay_Skeletal.GetTag().GetTagName();
+	SeekAndDestroy(SkeletalMeshTag);
+
+	const FName StaticMeshTag = Tag_GASP_Component_Mesh_Overlay_Static.GetTag().GetTagName();
+	SeekAndDestroy(StaticMeshTag);
+}
+
 void ANinjaGASPCharacter::SetupPlayerCamera_Implementation()
 {
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
@@ -612,4 +879,3 @@ UNinjaEquipmentManagerComponent* ANinjaGASPCharacter::GetEquipmentManager_Implem
 {
 	return EquipmentManager;
 }
-

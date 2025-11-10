@@ -17,5 +17,6 @@ enum class ECharacterOverlayPose : uint8
 	Box,
 	Barrel,
 	Injured,
-	HandsTied
+	HandsTied,
+	None = 255		UMETA(Hidden)
 };

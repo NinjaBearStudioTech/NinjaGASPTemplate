@@ -10,5 +10,6 @@ enum class ECharacterOverlayBase : uint8
 	GASP,
 	ALS,
 	Masculine,
-	Feminine
+	Feminine,
+	None = 255		UMETA(Hidden)
 };

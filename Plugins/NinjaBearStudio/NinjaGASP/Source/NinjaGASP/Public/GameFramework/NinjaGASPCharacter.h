@@ -15,10 +15,13 @@
 #include "Types/ECharacterOverlayPose.h"
 #include "Types/ECharacterTraversalAction.h"
 #include "Types/FCharacterMovementIntents.h"
+#include "Types/FCharacterOverlayActivationAnimation.h"
 #include "Types/FCharacterTraversalActionSummary.h"
 #include "NinjaGASPCharacter.generated.h"
 
+class UNinjaGASPPoseOverlayDataAsset;
 class UAISense;
+class UChooserTable;
 class UGameplayCameraComponent;
 class UNinjaCombatMotionWarpingComponent;
 class UAIPerceptionStimuliSourceComponent;
@@ -128,39 +131,47 @@ public:
 	 * Returns the overlay value that affects the base animation layer.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
-	ECharacterOverlayBase GetAnimationOverlayBase() const { return AnimationOverlayBase; }
+	ECharacterOverlayBase GetBaseAnimationOverlay() const { return BaseAnimationOverlay; }
 
 	/**
 	 * Sets the overlay value that affects the base animation layer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
-	void SetAnimationOverlayBase(const ECharacterOverlayBase NewBase) { AnimationOverlayBase = NewBase; }
-	
+	void SetBaseAnimationOverlay(const ECharacterOverlayBase NewBase);
+
 	/**
 	 * Returns the overlay value that affects the pose animation layer.
 	 */
 	UFUNCTION(BlueprintPure, Category = "NBS|GASP|Character")
-	ECharacterOverlayPose GetAnimationOverlayPose() const { return AnimationOverlayPose; }
+	ECharacterOverlayPose GetPoseAnimationOverlay() const { return PoseAnimationOverlay; }
 
 	/**
 	 * Sets the overlay value that affects the pose animation layer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NBS|GASP|Character")
-	void SetAnimationOverlayPose(const ECharacterOverlayPose NewPose) { AnimationOverlayPose = NewPose; }
+	void SetPoseAnimationOverlay(const ECharacterOverlayPose NewPose);
+
+	/**
+	 * Attaches an object related to a pose overlay.
+	 *
+	 * Usually, this is mostly related to the default GASPALS object attachment and this function
+	 * is simply exposing that. But as you get more and more into the Inventory system integration,
+	 * this should become "prototype code".
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
+	void AttachPoseObjectToHand(const UNinjaGASPPoseOverlayDataAsset* PoseData);
+	virtual void AttachPoseObjectToHand_Implementation(const UNinjaGASPPoseOverlayDataAsset* PoseData);
 	
 	/**
 	 * Clears any object directly held by the character.
 	 *
 	 * Usually, this is mostly related to the default GASPALS object attachment and this function
 	 * is simply exposing that. But as you get more and more into the Inventory system integration,
-	 * this should be just "prototype code".
-	 *
-	 * Eventually, when the entire functionality is migrated to the inventory integration, including
-	 * a selection wheel for these default GASPALS items, this functionality might be removed.
+	 * this should become "prototype code".
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
 	void ClearHeldObject();
-	virtual void ClearHeldObject_Implementation() { }
+	virtual void ClearHeldObject_Implementation();
 	
 protected:
 
@@ -183,11 +194,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI", meta = (EditCondition = bOverrideEyesViewPointForSightPerception))
 	FName SightSenseSourceLocationName;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
-	ECharacterOverlayBase AnimationOverlayBase;
+	/** The base overlay used for the animation. During gameplay, use the provided getter and setter. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay", ReplicatedUsing = OnRep_BaseAnimationOverlay)
+	ECharacterOverlayBase BaseAnimationOverlay;
+	
+	/** The pose overlay used for the animation. During gameplay, use the provided getter and setter. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay", ReplicatedUsing = OnRep_PoseAnimationOverlay)
+	ECharacterOverlayPose PoseAnimationOverlay;
 
+	/** Chooser table used for base overlays. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
-	ECharacterOverlayPose AnimationOverlayPose;
+	TObjectPtr<UChooserTable> BaseOverlayChooserTable;
+
+	/** Chooser table used for pose overlays. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
+	TObjectPtr<UChooserTable> PoseOverlayChooserTable;
 	
 	/** Console variable that toggles Gameplay Camera and Camera Component setups. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Player Camera")
@@ -232,6 +253,27 @@ protected:
 	
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();
+
+	/** Consolidates the base animation layer, processing the current value. */
+	void ConsolidateBaseAnimationLayer();
+
+	/** Consolidates the pose animation layer, processing the current value. */
+	void ConsolidatePoseAnimationLayer();
+
+	/** Links the overlay instance to the correct animation, provided by combat. */
+	void LinkOverlayAnimationLayer(TSubclassOf<UAnimInstance> LayerClass) const;
+	
+	/** Plays a dynamic montage from the provided montage data. */
+	void PlaySlotAnimationAsDynamicMontage(const FCharacterOverlayActivationAnimation& Params) const;
+
+	/**
+	 * Timer friendly function that will wait and set the owner to an anim bp.
+	 * 
+	 * This is usually something the Equipment Instance would do, but the ALS layer system handles
+	 * its own overlay items directly, so we also need to account for that here.
+	 */
+	UFUNCTION()
+	void SetOwnerToPoseOverlayAnimationInstance(USkeletalMeshComponent* PoseItemMesh);
 	
 	/**
 	 * Initializes the camera, either Gameplay Camera or Camera Component.
@@ -288,17 +330,50 @@ protected:
 	void HandleCharacterLanded(FVector Velocity);
 
 	/**
-	 * Reacts to changes in the movement intents.
+	 * Handles a change for the base animation overlay.
+	 *
+	 * @param CurrentBase
+	 *		Current value for the base.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
+	void HandleBaseAnimationOverlayChanged(ECharacterOverlayBase CurrentBase);
+
+	/**
+	 * Handles a change for the pose animation overlay.
+	 *
+	 * @param CurrentPose
+	 *		Current value for the pose.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NBS|GASP|Character", meta = (ForceAsFunction))
+	void HandlePoseAnimationOverlayChanged(ECharacterOverlayPose CurrentPose);
+	
+	/**
+	 * Reacts to the replication of the movement intents.
 	 * Includes the previous version for detailed comparison.
 	 */
 	UFUNCTION()
 	virtual void OnRep_MovementIntents(FCharacterMovementIntents OldMovementIntents);
 
 	/**
-	 * Reacts to changes in the traversal action summary.
+	 * Reacts to the replication of the traversal action summary.
+	 * Includes the previous version for detailed comparison.
 	 */
 	UFUNCTION()
 	virtual void OnRep_TraversalAction(FCharacterTraversalActionSummary OldTraversalActionSummary);
+
+	/**
+	 * Reacts to the replication of the base animation overlay.
+	 * This is where we should actually apply the pose.
+	 */
+	UFUNCTION()
+	virtual void OnRep_BaseAnimationOverlay();
+
+	/**
+	 * Reacts to the replication of the pose animation overlay.
+	 * This is where we should actually apply the pose.
+	 */
+	UFUNCTION()
+	virtual void OnRep_PoseAnimationOverlay();
 	
 	/**
 	 * Routes the input state through the server.
@@ -313,13 +388,25 @@ protected:
 	 */
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_RegisterTraversalAction(ECharacterTraversalAction ActionType, UPrimitiveComponent* Target);
-
+	
 	/**
 	 * Routes the traversal action through the server.
 	 * Most likely incoming from "ClearTraversalAction".
 	 */
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_ClearTraversalAction();
+
+	/**
+	 * Routes the base animation layer on the server to support replication. 
+	 */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetBaseAnimationOverlay(ECharacterOverlayBase NewBase);
+
+	/**
+	 * Routes the pose animation layer on the server to support replication. 
+	 */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetPoseAnimationOverlay(ECharacterOverlayPose NewPose);
 	
 private:
 
@@ -337,6 +424,12 @@ private:
 
 	/** Timer handle that resets the corrections from traversal. */
 	FTimerHandle TraversalCorrectionTimerHandle;
+
+	/** Tracks the last base layer processed. Track this to avoid applying twice due to prediction. */
+	ECharacterOverlayBase LastProcessedBaseOverlay = ECharacterOverlayBase::None;
+	
+	/** Tracks the last pose layer processed. Track this to avoid applying twice due to prediction. */
+	ECharacterOverlayPose LastProcessedPoseOverlay = ECharacterOverlayPose::None;
 	
 	/** Aggregation of current input flags. */
 	UPROPERTY(ReplicatedUsing = OnRep_MovementIntents)
@@ -376,7 +469,7 @@ private:
 	/** Equipment manager that handles physical presence of items in the world. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UNinjaEquipmentManagerComponent> EquipmentManager;
-	
+
 	UFUNCTION(Client, Reliable)
 	void Client_SetupPlayerCamera();
 
