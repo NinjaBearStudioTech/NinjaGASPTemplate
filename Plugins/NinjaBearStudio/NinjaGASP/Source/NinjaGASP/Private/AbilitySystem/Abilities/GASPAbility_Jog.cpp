@@ -44,6 +44,23 @@ bool UGASPAbility_Jog::IsJogging() const
 	return true;
 }
 
+bool UGASPAbility_Jog::ShouldApplyCost_Implementation() const
+{
+	const AActor* MyAvatar = GetAvatarActorFromActorInfo();
+	if (!IsValid(MyAvatar) || !MyAvatar->Implements<UAdvancedCharacterMovementInterface>())
+	{
+		// This is an odd scenario, but in this case keep the default ability behavior:
+		// Allow the cost to be applied normally and the ability to execute its logic.
+		//
+		return true;
+	}
+
+	// If the valid avatar implements the interface, then apply the cost if we are actually.
+	// running (or jogging). Otherwise, the character has the intent active.
+	//
+	return IAdvancedCharacterMovementInterface::Execute_IsActivelyRunning(MyAvatar);
+}
+
 bool UGASPAbility_Jog::ActivateLocomotionMode_Implementation()
 {
 	AActor* MyAvatar = GetAvatarActorFromActorInfo();

@@ -308,6 +308,27 @@ void ANinjaGASPCharacter::SetAimingIntent_Implementation(const bool bWantsToAim)
 	SetMovementIntents(Intents);
 }
 
+bool ANinjaGASPCharacter::IsActivelyRunning_Implementation() const
+{
+	const bool bWantsToWalk = GetMovementIntents().bWantsToWalk;
+	const bool bWantsToSprint = GetMovementIntents().bWantsToSprint;
+	if (!bWantsToWalk || !bWantsToSprint)
+	{
+		// An overriding intent is set.
+		return false;
+	}
+
+	const UCharacterMovementComponent* CMC = GetCharacterMovement();
+	if (!IsValid(CMC))
+	{
+		// We need a CMC to check this here. Other implementations requires overriding.
+		return false;
+	}
+
+	static constexpr float Tolerance = 0.001f;
+	return !UKismetMathLibrary::Vector_IsNearlyZero(CMC->Velocity, Tolerance);	
+}
+
 bool ANinjaGASPCharacter::IsActivelySprinting_Implementation() const
 {
 	const bool bWantsToSprint = GetMovementIntents().bWantsToSprint;

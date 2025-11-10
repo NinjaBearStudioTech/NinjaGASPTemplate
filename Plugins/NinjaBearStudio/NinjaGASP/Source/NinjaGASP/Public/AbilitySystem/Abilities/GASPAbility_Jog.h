@@ -47,6 +47,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Jog", meta = (EditCondition = "bActivateWalkOnEnd"))
 	FGameplayTagContainer WalkAbilityActivationTags;
 
+	virtual bool ShouldApplyCost_Implementation() const override;
 	virtual bool ActivateLocomotionMode_Implementation() override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	

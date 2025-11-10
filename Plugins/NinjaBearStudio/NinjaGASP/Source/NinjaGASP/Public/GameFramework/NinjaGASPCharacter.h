@@ -94,6 +94,7 @@ public:
 	virtual void SetSprintingIntent_Implementation(bool bWantsToSprint) override;
 	virtual void SetStrafingIntent_Implementation(bool bWantsToStrafe) override;
 	virtual void SetAimingIntent_Implementation(bool bWantsToAim) override;
+	virtual bool IsActivelyRunning_Implementation() const override;
 	virtual bool IsActivelySprinting_Implementation() const override;
 	virtual bool HasJustLanded_Implementation() const override { return bJustLanded; }
 	virtual FVector GetLandVelocity_Implementation() const override { return LandedVelocity; }
