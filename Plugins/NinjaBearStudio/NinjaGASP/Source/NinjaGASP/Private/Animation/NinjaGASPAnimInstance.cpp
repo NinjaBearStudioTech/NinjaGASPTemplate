@@ -4,11 +4,13 @@
 #include "AnimationWarpingLibrary.h"
 #include "ChooserFunctionLibrary.h"
 #include "KismetAnimationLibrary.h"
+#include "NinjaGASPTags.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/BlendProfile.h"
 #include "BlendStack/BlendStackAnimNodeLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/NinjaGASPCharacter.h"
 #include "Interfaces/AdvancedCharacterMovementInterface.h"
 #include "Interfaces/PlayerCameraModeInterface.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -156,6 +158,31 @@ FAnimInstanceProxy* UNinjaGASPAnimInstance::CreateAnimInstanceProxy()
 void UNinjaGASPAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy)
 {
 	// We don't want to call super here, since we actually want to keep the proxy.
+}
+
+void UNinjaGASPAnimInstance::NativeInitializeAnimation()
+{
+	Super::NativeInitializeAnimation();
+
+	APawn* MyOwner = TryGetPawnOwner();
+	if (IsValid(MyOwner))
+	{
+		const FName PrimaryMeshTag = Tag_GASP_Component_Mesh_Primary.GetTag().GetTagName();
+		PrimaryMesh = MyOwner->FindComponentByTag<USkeletalMeshComponent>(PrimaryMeshTag);
+
+		const FName SkeletalOverlayTag = Tag_GASP_Component_Mesh_Overlay_Skeletal.GetTag().GetTagName();
+		OverlaySkeletalMesh = MyOwner->FindComponentByTag<USkeletalMeshComponent>(SkeletalOverlayTag);
+
+		const FName StaticOverlayTag = Tag_GASP_Component_Mesh_Overlay_Static.GetTag().GetTagName();
+		OverlayStaticMesh = MyOwner->FindComponentByTag<UStaticMeshComponent>(StaticOverlayTag);
+
+		ANinjaGASPCharacter* CharacterOwner = Cast<ANinjaGASPCharacter>(MyOwner);
+		if (IsValid(CharacterOwner))
+		{
+			CharacterOwner->OnBaseAnimationOverlayChanged.AddUniqueDynamic(this, &ThisClass::HandleBaseAnimationOverlayChanged);
+			CharacterOwner->OnPoseAnimationOverlayChanged.AddUniqueDynamic(this, &ThisClass::HandlePoseAnimationOverlayChanged);
+		}
+	}
 }
 
 void UNinjaGASPAnimInstance::NativeThreadSafeUpdateAnimation(const float DeltaSeconds)
@@ -957,4 +984,21 @@ void UNinjaGASPAnimInstance::OnUpdate_TransitionToLocomotionLoop(const FAnimUpda
 	static constexpr float InterpSpeed = 5.f;
 	TargetRotationOnTransitionStart = UKismetMathLibrary::RInterpTo(
 		TargetRotationOnTransitionStart, TargetRotation, GetDeltaSeconds(), InterpSpeed);
+}
+
+void UNinjaGASPAnimInstance::HandleBaseAnimationOverlayChanged_Implementation(ECharacterOverlayBase NewBase)
+{
+}
+
+void UNinjaGASPAnimInstance::HandlePoseAnimationOverlayChanged_Implementation(ECharacterOverlayPose NewPose)
+{
+	const APawn* MyOwner = TryGetPawnOwner();
+	if (IsValid(MyOwner))
+	{
+		const FName SkeletalOverlayTag = Tag_GASP_Component_Mesh_Overlay_Skeletal.GetTag().GetTagName();
+		OverlaySkeletalMesh = MyOwner->FindComponentByTag<USkeletalMeshComponent>(SkeletalOverlayTag);
+
+		const FName StaticOverlayTag = Tag_GASP_Component_Mesh_Overlay_Static.GetTag().GetTagName();
+		OverlayStaticMesh = MyOwner->FindComponentByTag<UStaticMeshComponent>(StaticOverlayTag);		
+	}
 }

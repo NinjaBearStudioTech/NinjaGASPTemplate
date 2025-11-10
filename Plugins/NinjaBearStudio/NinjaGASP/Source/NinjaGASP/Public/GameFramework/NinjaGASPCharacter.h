@@ -39,11 +39,22 @@ class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPre
 	public IAdvancedCharacterMovementInterface, public ITraversalMovementInputInterface, public ICombatSystemInterface, 
 	public ICombatMeleeInterface, public ICombatRangedInterface, public IInventorySystemInterface, public IEquipmentSystemInterface
 {
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBaseAnimationOverlayChanged, ECharacterOverlayBase, NewBase);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPoseAnimationOverlayChanged, ECharacterOverlayPose, NewPose);
 	
 	GENERATED_BODY()
 
 public:
 
+	/** Broadcasts a change in the base animation overlay, providing the new value. */
+	UPROPERTY(BlueprintAssignable)
+	FBaseAnimationOverlayChanged OnBaseAnimationOverlayChanged;
+
+	/** Broadcasts a change in the pose animation overlay, providing the new value. */
+	UPROPERTY(BlueprintAssignable)
+	FPoseAnimationOverlayChanged OnPoseAnimationOverlayChanged;
+	
 	ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// -- Begin Pawn/Character implementation

@@ -537,6 +537,7 @@ void ANinjaGASPCharacter::ConsolidateBaseAnimationLayer()
 	{
 		LastProcessedBaseOverlay = BaseAnimationOverlay;
 		HandleBaseAnimationOverlayChanged(BaseAnimationOverlay);
+		OnBaseAnimationOverlayChanged.Broadcast(BaseAnimationOverlay);
 	}	
 }
 
@@ -608,7 +609,8 @@ void ANinjaGASPCharacter::ConsolidatePoseAnimationLayer()
 	{
 		LastProcessedPoseOverlay = PoseAnimationOverlay;
 		HandlePoseAnimationOverlayChanged(PoseAnimationOverlay);
-	}		
+		OnPoseAnimationOverlayChanged.Broadcast(PoseAnimationOverlay);
+	}
 }
 
 void ANinjaGASPCharacter::HandlePoseAnimationOverlayChanged_Implementation(ECharacterOverlayPose CurrentPose)

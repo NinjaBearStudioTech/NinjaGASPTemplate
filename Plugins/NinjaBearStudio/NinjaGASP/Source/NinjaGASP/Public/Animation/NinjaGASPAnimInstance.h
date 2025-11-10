@@ -19,6 +19,8 @@
 #include "Types/ECharacterMovementDirectionBias.h"
 #include "Types/ECharacterMovementMode.h"
 #include "Types/ECharacterMovementState.h"
+#include "Types/ECharacterOverlayBase.h"
+#include "Types/ECharacterOverlayPose.h"
 #include "Types/ECharacterRotationMode.h"
 #include "Types/ECharacterStance.h"
 #include "Types/EPlayerCameraMode.h"
@@ -31,6 +33,8 @@ class ACharacter;
 class UChooserTable;
 class UPoseSearchDatabase;
 class UCharacterMovementComponent;
+class USkeletalMeshComponent;
+class UStaticMeshComponent;
 class UAnimSequence;
 
 /** Settings used with the Pose Search Trajectory functionality. */
@@ -112,6 +116,18 @@ class NINJAGASP_API UNinjaGASPAnimInstance : public UAnimInstance, public ITrave
 
 public:
 
+	/** Primary Skeletal Mesh obtained from the character. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<USkeletalMeshComponent> PrimaryMesh;
+
+	/** Skeletal Mesh representing an overlay item from a pose. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<USkeletalMeshComponent> OverlaySkeletalMesh;
+
+	/** Static Mesh representing an overlay item from a pose. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> OverlayStaticMesh;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Essential Values")
 	bool bOffsetRootBoneEnabled;
 	
@@ -561,6 +577,7 @@ protected:
 	// -- Begin AnimInstance implementation
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
+	virtual void NativeInitializeAnimation() override;
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 	// -- End AnimInstance implementation
 
@@ -756,5 +773,18 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
 	void HandleMotionMatchingPostSelection(const FMotionMatchingAnimNodeReference& MotionMatchingNodeRef);
+
+	/**
+	 * Reacts to a change in the owner's base overlay.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	void HandleBaseAnimationOverlayChanged(ECharacterOverlayBase NewBase);
+
+	/**
+	 * Reacts to a change in the owner's pose overlay.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "NBS|GASP|Animation Instance", meta = (BlueprintThreadSafe, ForceAsFunction))
+	void HandlePoseAnimationOverlayChanged(ECharacterOverlayPose NewPose);
+
 	
 };
