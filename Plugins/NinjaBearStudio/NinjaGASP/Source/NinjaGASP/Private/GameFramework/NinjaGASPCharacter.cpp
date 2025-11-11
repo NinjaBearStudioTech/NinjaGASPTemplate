@@ -69,6 +69,7 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	InteractionScan = CreateOptionalDefaultSubobject<USphereComponent>(InteractionScanName);
 	InteractionScan->ComponentTags.Add(Tag_Interaction_Component_InteractableScan.GetTag().GetTagName());
 	InteractionScan->SetCollisionProfileName(InteractionScanProfileName);
+	InteractionScan->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
 	InteractionScan->SetSphereRadius(200.f);
 	InteractionScan->SetupAttachment(GetMesh());
 	
