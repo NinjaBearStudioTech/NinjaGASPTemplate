@@ -19,9 +19,9 @@
 #include "Types/FCharacterTraversalActionSummary.h"
 #include "NinjaGASPCharacter.generated.h"
 
-class UNinjaGASPPoseOverlayDataAsset;
 class UAISense;
 class UChooserTable;
+class USphereComponent;
 class UGameplayCameraComponent;
 class UNinjaCombatMotionWarpingComponent;
 class UAIPerceptionStimuliSourceComponent;
@@ -30,6 +30,8 @@ class UNinjaCombatComboManagerComponent;
 class UNinjaCombatBaseWeaponManagerComponent;
 class UNinjaInventoryManagerComponent;
 class UNinjaEquipmentManagerComponent;
+class UNinjaInteractionManagerComponent;
+class UNinjaGASPPoseOverlayDataAsset;
 
 /**
  * Base character, with functionality that can be shared between players and AI.
@@ -193,6 +195,8 @@ protected:
 	static FName WeaponManagerName;
 	static FName InventoryManagerName;
 	static FName EquipmentManagerName;
+	static FName InteractionManagerName;
+	static FName InteractionScanName;
 	
 	/** All stimuli sources registered with this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI")
@@ -470,6 +474,14 @@ private:
 	/** Weapon Manager integrated with the Inventory/Equipment system. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UNinjaCombatBaseWeaponManagerComponent> WeaponManager;
+
+	/** Interaction Manager used to interact with the world. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UNinjaInteractionManagerComponent> InteractionManager;
+
+	/** Sphere used to scan for interactable objects. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	TObjectPtr<USphereComponent> InteractionScan;
 	
 	/**
 	 * Manages all items assigned to this character.

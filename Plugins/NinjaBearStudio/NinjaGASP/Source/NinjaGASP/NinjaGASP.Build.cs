@@ -11,6 +11,7 @@ public class NinjaGASP : ModuleRules
 		{
 			// Unreal Engine Modules
 			"AIModule",
+			"AnimationWarpingRuntime",
 			"Chooser",
 			"Core", 
 			"InputCore", 
@@ -28,6 +29,7 @@ public class NinjaGASP : ModuleRules
 			"NinjaCombatInventory",
 			"NinjaGAS",
 			"NinjaInput",
+			"NinjaInteraction",
 			"NinjaInventory",
 			"NinjaInventoryCore",
 			"NinjaInventoryEquipment",
@@ -36,7 +38,6 @@ public class NinjaGASP : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new []
 		{
 			"AnimGraphRuntime",
-			"AnimationWarpingRuntime",
 			"BlendStack",
 			"CoreUObject",
 			"GameplayCameras",

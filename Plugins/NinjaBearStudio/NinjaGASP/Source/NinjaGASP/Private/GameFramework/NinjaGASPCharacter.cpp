@@ -4,6 +4,7 @@
 #include "Chooser.h"
 #include "ChooserFunctionLibrary.h"
 #include "NinjaGASPTags.h"
+#include "NinjaInteractionTags.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -12,7 +13,9 @@
 #include "Components/NinjaCombatManagerComponent.h"
 #include "Components/NinjaCombatMotionWarpingComponent.h"
 #include "Components/NinjaEquipmentManagerComponent.h"
+#include "Components/NinjaInteractionManagerComponent.h"
 #include "Components/NinjaInventoryManagerComponent.h"
+#include "Components/SphereComponent.h"
 #include "Data/NinjaGASPBaseOverlayDataAsset.h"
 #include "Data/NinjaGASPPoseOverlayDataAsset.h"
 #include "GameFramework/GameplayCameraComponent.h"
@@ -34,6 +37,8 @@ FName ANinjaGASPCharacter::MotionWarpingName = TEXT("MotionWarping");
 FName ANinjaGASPCharacter::WeaponManagerName = TEXT("WeaponManager");
 FName ANinjaGASPCharacter::InventoryManagerName = TEXT("InventoryManager");
 FName ANinjaGASPCharacter::EquipmentManagerName = TEXT("EquipmentManager");
+FName ANinjaGASPCharacter::InteractionManagerName = TEXT("InteractionManager");
+FName ANinjaGASPCharacter::InteractionScanName = TEXT("InteractionScan");
 
 ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNinjaGASPCharacterMovementComponent>(CharacterMovementComponentName))
@@ -59,14 +64,22 @@ ANinjaGASPCharacter::ANinjaGASPCharacter(const FObjectInitializer& ObjectInitial
 	StimuliSenseSources.Add(UAISense_Sight::StaticClass());
 	StimuliSenseSources.Add(UAISense_Hearing::StaticClass());
 	StimuliSenseSources.Add(UAISense_Damage::StaticClass());
+
+	static FName InteractionScanProfileName(TEXT("InteractionSource"));
+	InteractionScan = CreateOptionalDefaultSubobject<USphereComponent>(InteractionScanName);
+	InteractionScan->ComponentTags.Add(Tag_Interaction_Component_InteractableScan.GetTag().GetTagName());
+	InteractionScan->SetCollisionProfileName(InteractionScanProfileName);
+	InteractionScan->SetSphereRadius(200.f);
+	InteractionScan->SetupAttachment(GetMesh());
 	
 	StimuliSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("StimuliSource"));
 	CombatManager = CreateDefaultSubobject<UNinjaCombatManagerComponent>(CombatManagerName);
 	ComboManager = CreateDefaultSubobject<UNinjaCombatComboManagerComponent>(ComboManagerName);
 	MotionWarping = CreateDefaultSubobject<UNinjaCombatMotionWarpingComponent>(MotionWarpingName);
 	WeaponManager = CreateDefaultSubobject<UNinjaCombatEquipmentAdapterComponent>(WeaponManagerName);
-	InventoryManager = CreateOptionalDefaultSubobject<UNinjaInventoryManagerComponent>(InventoryManagerName);
+	InteractionManager = CreateDefaultSubobject<UNinjaInteractionManagerComponent>(InteractionManagerName);
 	EquipmentManager = CreateDefaultSubobject<UNinjaEquipmentManagerComponent>(EquipmentManagerName);
+	InventoryManager = CreateOptionalDefaultSubobject<UNinjaInventoryManagerComponent>(InventoryManagerName);
 }
 
 bool ANinjaGASPCharacter::IsLocallyControlled() const
