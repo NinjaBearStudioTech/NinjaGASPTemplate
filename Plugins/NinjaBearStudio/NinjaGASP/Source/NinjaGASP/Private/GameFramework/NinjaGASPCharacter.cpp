@@ -5,6 +5,7 @@
 #include "ChooserFunctionLibrary.h"
 #include "NinjaGASPTags.h"
 #include "NinjaInteractionTags.h"
+#include "NinjaInventoryFunctionLibrary.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -920,4 +921,15 @@ UNinjaInventoryManagerComponent* ANinjaGASPCharacter::GetInventoryManager_Implem
 UNinjaEquipmentManagerComponent* ANinjaGASPCharacter::GetEquipmentManager_Implementation() const
 {
 	return EquipmentManager;
+}
+
+void ANinjaGASPCharacter::OnInventoryInitializationFinished_Implementation(UNinjaInventoryManagerComponent* Inventory)
+{
+	if (IsValid(Inventory) && Inventory->IsInventoryInitialized() && HasAuthority())
+	{
+		for (const FInventoryDefaultItem& InitialItem : InitialItems)
+		{
+			Inventory->AddItem(InitialItem);
+		}
+	}
 }

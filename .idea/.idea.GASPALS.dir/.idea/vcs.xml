@@ -2,5 +2,14 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaCombat" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaCommonUI" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaFactions" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaGAS" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaInput" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaInteraction" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaPerception" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaProfile" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Plugins/NinjaBearStudio/NinjaTokens" vcs="Git" />
   </component>
 </project>

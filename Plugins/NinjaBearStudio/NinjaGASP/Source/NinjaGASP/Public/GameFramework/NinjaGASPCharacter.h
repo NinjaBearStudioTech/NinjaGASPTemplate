@@ -8,6 +8,7 @@
 #include "Interfaces/CombatRangedInterface.h"
 #include "Interfaces/CombatSystemInterface.h"
 #include "Interfaces/EquipmentSystemInterface.h"
+#include "Interfaces/InventoryInitializationWatcherInterface.h"
 #include "Interfaces/InventorySystemInterface.h"
 #include "Interfaces/PreMovementComponentTickInterface.h"
 #include "Interfaces/TraversalMovementInputInterface.h"
@@ -17,6 +18,7 @@
 #include "Types/FCharacterMovementIntents.h"
 #include "Types/FCharacterOverlayActivationAnimation.h"
 #include "Types/FCharacterTraversalActionSummary.h"
+#include "Types/FInventoryDefaultItem.h"
 #include "NinjaGASPCharacter.generated.h"
 
 class UAISense;
@@ -39,7 +41,8 @@ class UNinjaGASPPoseOverlayDataAsset;
 UCLASS()
 class NINJAGASP_API ANinjaGASPCharacter : public ANinjaGASCharacter, public IPreMovementComponentTickInterface,
 	public IAdvancedCharacterMovementInterface, public ITraversalMovementInputInterface, public ICombatSystemInterface, 
-	public ICombatMeleeInterface, public ICombatRangedInterface, public IInventorySystemInterface, public IEquipmentSystemInterface
+	public ICombatMeleeInterface, public ICombatRangedInterface, public IInventorySystemInterface, public IEquipmentSystemInterface,
+	public IInventoryInitializationWatcherInterface
 {
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBaseAnimationOverlayChanged, ECharacterOverlayBase, NewBase);
@@ -89,6 +92,7 @@ public:
 	// -- Begin Inventory/Equipment implementation
 	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	virtual UNinjaEquipmentManagerComponent* GetEquipmentManager_Implementation() const override;
+	virtual void OnInventoryInitializationFinished_Implementation(UNinjaInventoryManagerComponent* Inventory) override;
 	// -- End Inventory/Equipment implementation
 
 	// -- Begin Advanced Movement implementation
@@ -197,6 +201,18 @@ protected:
 	static FName EquipmentManagerName;
 	static FName InteractionManagerName;
 	static FName InteractionScanName;
+
+	/** Absolute yaw we must be in to be considered actively sprinting. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float ActiveSprintAngle;
+	
+	/** Time to wait, before resetting the landed flag. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float LandingResetTime;
+
+	/** Interval to reset corrections after a traversal movement ends. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
+	float TimeToResetTraversalCorrections;
 	
 	/** All stimuli sources registered with this character. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|AI")
@@ -225,10 +241,10 @@ protected:
 	/** Chooser table used for pose overlays. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Overlay")
 	TObjectPtr<UChooserTable> PoseOverlayChooserTable;
-	
-	/** Console variable that toggles Gameplay Camera and Camera Component setups. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Player Camera")
-	FString GameplayCameraConsoleVariable;
+
+	/** Default items added to the inventory when it initializes. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Inventory", meta = (TitleProperty = "ItemData"))
+	TArray<FInventoryDefaultItem> InitialItems;
 
 	/**
 	 * Default gameplay effect used when melee damage is applied.
@@ -255,17 +271,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Melee Combat", meta = (UIMin = 0.f, ClampMin = 0.f))
 	float DefaultMeleeEffectLevel;
 
-	/** Absolute yaw we must be in to be considered actively sprinting. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
-	float ActiveSprintAngle;
-	
-	/** Time to wait, before resetting the landed flag. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
-	float LandingResetTime;
-
-	/** Interval to reset corrections after a traversal movement ends. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Movement", meta = (UIMin = 0.f, ClampMin = 0.f))
-	float TimeToResetTraversalCorrections;
+	/** Console variable that toggles Gameplay Camera and Camera Component setups. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Player Camera")
+	FString GameplayCameraConsoleVariable;
 	
 	/** Registers all stimuli sources when we have a valid world. */
 	void RegisterStimuliSources();

@@ -61,7 +61,7 @@ void ANinjaGASPPlayerCharacter::InitializeInventorySystemComponentFromPlayerStat
 {
 	if (IsValid(CurrentPlayerState))
 	{
-		CharacterInventoryPtr = UNinjaInventoryFunctionLibrary::GetInventoryManager(this);
+		CharacterInventoryPtr = UNinjaInventoryFunctionLibrary::GetInventoryManager(CurrentPlayerState);
 	}
 	else
 	{
@@ -98,6 +98,12 @@ UNinjaInventoryManagerComponent* ANinjaGASPPlayerCharacter::GetInventoryManager_
 		return CharacterInventoryPtr.Get();
 	}
 	return nullptr;
+}
+
+void ANinjaGASPPlayerCharacter::OnInventoryInitializationFinished_Implementation(UNinjaInventoryManagerComponent* Inventory)
+{
+	CharacterInventoryPtr = Inventory;
+	Super::OnInventoryInitializationFinished_Implementation(Inventory);
 }
 
 void ANinjaGASPPlayerCharacter::SetCameraAiming_Implementation(const bool bNewCameraAiming)

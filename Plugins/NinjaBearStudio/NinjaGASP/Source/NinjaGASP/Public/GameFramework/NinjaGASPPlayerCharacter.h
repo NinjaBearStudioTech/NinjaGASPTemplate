@@ -35,6 +35,10 @@ public:
 	virtual UNinjaInventoryManagerComponent* GetInventoryManager_Implementation() const override;
 	// -- End Character implementation
 
+	// -- Begin Inventory/Equipment implementation
+	virtual void OnInventoryInitializationFinished_Implementation(UNinjaInventoryManagerComponent* Inventory) override;
+	// -- End Inventory/Equipment implementation
+	
 	// -- Begin PlayerCameraMode implementation
 	virtual void SetCameraAiming_Implementation(bool bNewCameraAiming) override;
 	// -- End PlayerCameraMode implementation
