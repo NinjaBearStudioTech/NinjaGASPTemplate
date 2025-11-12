@@ -42,7 +42,11 @@ void UNinjaGASPBaseLocomotionWithCostAbility::ActivateAbility(const FGameplayAbi
 		bChangedLocomotionMode = ActivateLocomotionMode();
 	}
 
-	if (!bChangedLocomotionMode)
+	if (bChangedLocomotionMode)
+	{
+		ApplyLocomotionEffect();
+	}
+	else
 	{
 		static constexpr bool bReplicateAbilityEnd = true;
 		static constexpr bool bWasCancelled = false;

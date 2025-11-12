@@ -39,7 +39,11 @@ void UNinjaGASPBaseLocomotionAbility::ActivateAbility(const FGameplayAbilitySpec
 		bChangedLocomotionMode = ActivateLocomotionMode();
 	}
 
-	if (!bChangedLocomotionMode)
+	if (bChangedLocomotionMode)
+	{
+		ApplyLocomotionEffect();
+	}
+	else
 	{
 		static constexpr bool bReplicateAbilityEnd = true;
 		static constexpr bool bWasCancelled = false;
@@ -62,10 +66,29 @@ void UNinjaGASPBaseLocomotionAbility::EndAbility(const FGameplayAbilitySpecHandl
 		CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, bForceCooldown);
 		DeactivateLocomotionMode();	
 	}
-	
+
+	RemoveLocomotionEffect();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UNinjaGASPBaseLocomotionAbility::DeactivateLocomotionMode_Implementation()
 {
+}
+
+void UNinjaGASPBaseLocomotionAbility::ApplyLocomotionEffect()
+{
+	if (LocomotionEffectClass)
+	{
+		const int32 Level = GetAbilityLevel();
+		const FGameplayEffectSpecHandle TargetLockSpecHandle = MakeOutgoingGameplayEffectSpec(LocomotionEffectClass, Level);
+		LocomotionGameplayEffectHandle = K2_ApplyGameplayEffectSpecToOwner(TargetLockSpecHandle);	
+	}
+}
+
+void UNinjaGASPBaseLocomotionAbility::RemoveLocomotionEffect()
+{
+	if (LocomotionGameplayEffectHandle.IsValid())
+	{
+		BP_RemoveGameplayEffectFromOwnerWithHandle(LocomotionGameplayEffectHandle);
+	}
 }

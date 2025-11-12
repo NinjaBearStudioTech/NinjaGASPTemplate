@@ -326,7 +326,7 @@ bool ANinjaGASPCharacter::IsActivelyRunning_Implementation() const
 {
 	const bool bWantsToWalk = GetMovementIntents().bWantsToWalk;
 	const bool bWantsToSprint = GetMovementIntents().bWantsToSprint;
-	if (!bWantsToWalk || !bWantsToSprint)
+	if (bWantsToWalk || bWantsToSprint)
 	{
 		// An overriding intent is set.
 		return false;
@@ -728,7 +728,12 @@ void ANinjaGASPCharacter::AttachPoseObjectToHand_Implementation(const UNinjaGASP
 		{
 			NewSkeletalMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 			NewSkeletalMesh->SetAnimInstanceClass(PoseData->SkeletalMeshAnimClass);
-			SetOwnerToPoseOverlayAnimationInstance(NewSkeletalMesh);
+
+			// If this class implements the animation interface, then try to set the equipment info.
+			if (PoseData->SkeletalMeshAnimClass->ImplementsInterface(UEquipmentAnimationInterface::StaticClass()))
+			{
+				SetOwnerToPoseOverlayAnimationInstance(NewSkeletalMesh);	
+			}
 		}
 		
 		NewComponent = NewSkeletalMesh; 

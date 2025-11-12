@@ -23,6 +23,13 @@ public:
 		
 protected:
 
+	/**
+	 * Gameplay Effect applied while the locomotion ability is active.
+	 * The effect is applied using the ability level.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Locomotion")
+	TSubclassOf<UGameplayEffect> LocomotionEffectClass;
+	
 	/** Tracks changes done in the locomotion mode. May affect the cooldown application. */
 	bool bChangedLocomotionMode;
 	
@@ -53,5 +60,16 @@ protected:
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
 	void DeactivateLocomotionMode();
+
+	/** Applies the locomotion effect set in the ability, if any. */
+	virtual void ApplyLocomotionEffect();
+
+	/** Removes the locomotion effect set in the ability, if any. */
+	virtual void RemoveLocomotionEffect();
+
+private:
+
+	/** Handle representing the active locomotion gameplay effect. */
+	FActiveGameplayEffectHandle LocomotionGameplayEffectHandle;	
 	
 };
