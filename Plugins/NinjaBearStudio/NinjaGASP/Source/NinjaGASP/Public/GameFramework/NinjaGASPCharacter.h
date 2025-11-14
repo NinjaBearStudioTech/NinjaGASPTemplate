@@ -290,6 +290,12 @@ protected:
 	/** Plays a dynamic montage from the provided montage data. */
 	void PlaySlotAnimationAsDynamicMontage(const FCharacterOverlayActivationAnimation& Params) const;
 
+	/** Tries to add default inventory items if we have a valid inventory */
+	void TryAddDefaultInventoryItems(UNinjaInventoryManagerComponent* Inventory);
+	
+	/** Removes all inventory items added to an external inventory by this character. */
+	void TryRemoveDefaultInventoryItems();
+	
 	/**
 	 * Timer friendly function that will wait and set the owner to an anim bp.
 	 * 
@@ -454,6 +460,12 @@ private:
 	
 	/** Tracks the last pose layer processed. Track this to avoid applying twice due to prediction. */
 	ECharacterOverlayPose LastProcessedPoseOverlay = ECharacterOverlayPose::None;
+
+	/**
+	 * Stores all items added to the inventory by this character.
+	 * We may need to remove them when the character is unpossessed.
+	 */
+	TArray<FGuid> ItemsAddedByThisCharacter;
 	
 	/** Aggregation of current input flags. */
 	UPROPERTY(ReplicatedUsing = OnRep_MovementIntents)

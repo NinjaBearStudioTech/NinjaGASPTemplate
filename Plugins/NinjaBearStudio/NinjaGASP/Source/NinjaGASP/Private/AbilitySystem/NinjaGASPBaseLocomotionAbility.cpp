@@ -1,6 +1,8 @@
 ﻿// Ninja Bear Studio Inc., all rights reserved.
 #include "AbilitySystem/NinjaGASPBaseLocomotionAbility.h"
 
+#include "AbilitySystem/NinjaGASAbilitySystemComponent.h"
+
 UNinjaGASPBaseLocomotionAbility::UNinjaGASPBaseLocomotionAbility()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
@@ -41,6 +43,7 @@ void UNinjaGASPBaseLocomotionAbility::ActivateAbility(const FGameplayAbilitySpec
 
 	if (bChangedLocomotionMode)
 	{
+		BindToAbilitySystemAvatarChanged();
 		ApplyLocomotionEffect();
 	}
 	else
@@ -48,6 +51,37 @@ void UNinjaGASPBaseLocomotionAbility::ActivateAbility(const FGameplayAbilitySpec
 		static constexpr bool bReplicateAbilityEnd = true;
 		static constexpr bool bWasCancelled = false;
 		EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateAbilityEnd, bWasCancelled);
+	}
+}
+
+void UNinjaGASPBaseLocomotionAbility::BindToAbilitySystemAvatarChanged()
+{
+	// This only matters if this is a passive ability that has to be re-activated.
+	if (IsPassiveAbility())
+	{
+		UNinjaGASAbilitySystemComponent* AbilityComponent = Cast<UNinjaGASAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
+		if (IsValid(AbilityComponent))
+		{
+			AbilityComponent->OnAbilitySystemAvatarChanged.AddUniqueDynamic(this, &ThisClass::OnAvatarChanged);
+		}
+	}
+}
+
+void UNinjaGASPBaseLocomotionAbility::UnbindFromAbilitySystemAvatarChanged() const
+{
+	UNinjaGASAbilitySystemComponent* AbilityComponent = Cast<UNinjaGASAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
+	if (IsValid(AbilityComponent))
+	{
+		AbilityComponent->OnAbilitySystemAvatarChanged.RemoveAll(this);
+	}
+}
+
+void UNinjaGASPBaseLocomotionAbility::OnAvatarChanged_Implementation(AActor* NewAvatar)
+{
+	if (IsPassiveAbility())
+	{
+		bChangedLocomotionMode = false;
+		ActivateLocomotionMode();
 	}
 }
 

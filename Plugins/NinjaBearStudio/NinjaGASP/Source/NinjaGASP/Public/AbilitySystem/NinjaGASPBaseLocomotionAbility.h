@@ -56,6 +56,12 @@ protected:
 	bool ActivateLocomotionMode();
 
 	/**
+	 * Allows an action to be done when the avatar changes.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
+	void OnAvatarChanged(AActor* NewAvatar);
+	
+	/**
 	 * Deactivates the locomotion mode relevant to this ability.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "Locomotion")
@@ -70,6 +76,12 @@ protected:
 private:
 
 	/** Handle representing the active locomotion gameplay effect. */
-	FActiveGameplayEffectHandle LocomotionGameplayEffectHandle;	
+	FActiveGameplayEffectHandle LocomotionGameplayEffectHandle;
+
+	/** Binds to changes in the avatar, so we can reapply the movement mode. */
+	void BindToAbilitySystemAvatarChanged();
+
+	/** Unbinds to changes in the avatar. */
+	void UnbindFromAbilitySystemAvatarChanged() const;
 	
 };

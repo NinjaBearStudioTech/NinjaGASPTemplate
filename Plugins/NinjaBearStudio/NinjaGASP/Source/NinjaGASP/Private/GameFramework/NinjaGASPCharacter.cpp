@@ -6,6 +6,7 @@
 #include "NinjaGASPTags.h"
 #include "NinjaInteractionTags.h"
 #include "NinjaInventoryFunctionLibrary.h"
+#include "NinjaInventoryTags.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -96,10 +97,17 @@ void ANinjaGASPCharacter::PossessedBy(AController* NewController)
 
 	bIsLocallyControlled = NewController->IsLocalController();
 	SetupPlayerCamera();
+
+	UNinjaInventoryManagerComponent* Inventory = Execute_GetInventoryManager(this);
+	if (IsValid(Inventory))
+	{
+		TryAddDefaultInventoryItems(Inventory);
+	}
 }
 
 void ANinjaGASPCharacter::UnPossessed()
 {
+	TryRemoveDefaultInventoryItems();
 	DisablePlayerCamera();
 	ClearHeldObject();
 	bIsLocallyControlled = false;
@@ -925,11 +933,50 @@ UNinjaEquipmentManagerComponent* ANinjaGASPCharacter::GetEquipmentManager_Implem
 
 void ANinjaGASPCharacter::OnInventoryInitializationFinished_Implementation(UNinjaInventoryManagerComponent* Inventory)
 {
+	TryAddDefaultInventoryItems(Inventory);
+}
+
+void ANinjaGASPCharacter::TryAddDefaultInventoryItems(UNinjaInventoryManagerComponent* Inventory)
+{
+	if (!ItemsAddedByThisCharacter.IsEmpty())
+	{
+		// We already added items to the inventory. This is an important thing to track,
+		//
+		// since we could get into a race condition where the inventory initializes and the
+		// character has just been possessed by a controller, both paths to this function.
+		return;
+	}
+	
 	if (IsValid(Inventory) && Inventory->IsInventoryInitialized() && HasAuthority())
 	{
+		ItemsAddedByThisCharacter.Reserve(InitialItems.Num());
 		for (const FInventoryDefaultItem& InitialItem : InitialItems)
 		{
-			Inventory->AddItem(InitialItem);
+			const FGuid NewItemId = Inventory->AddItem(InitialItem);
+			if (NewItemId.IsValid())
+			{
+				ItemsAddedByThisCharacter.Add(NewItemId);	
+			}
 		}
 	}
+}
+
+void ANinjaGASPCharacter::TryRemoveDefaultInventoryItems()
+{
+	if (ItemsAddedByThisCharacter.IsEmpty())
+	{
+		return;
+	}
+	
+	UNinjaInventoryManagerComponent* ActualInventory = Execute_GetInventoryManager(this);
+	if (IsValid(ActualInventory) && ActualInventory->GetOwner() != this)
+	{
+		for (const FGuid& ItemId : ItemsAddedByThisCharacter)
+		{
+			const FGameplayTag ReasonTag = Tag_Inventory_Item_Removal_AvatarChanged;
+			ActualInventory->RemoveItemById(ItemId, ReasonTag, false);
+		}
+	}
+
+	ItemsAddedByThisCharacter.Reset();
 }

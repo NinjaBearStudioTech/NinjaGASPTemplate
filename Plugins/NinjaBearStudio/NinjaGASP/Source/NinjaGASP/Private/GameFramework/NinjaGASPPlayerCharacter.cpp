@@ -61,7 +61,12 @@ void ANinjaGASPPlayerCharacter::InitializeInventorySystemComponentFromPlayerStat
 {
 	if (IsValid(CurrentPlayerState))
 	{
-		CharacterInventoryPtr = UNinjaInventoryFunctionLibrary::GetInventoryManager(CurrentPlayerState);
+		UNinjaInventoryManagerComponent* Inventory = UNinjaInventoryFunctionLibrary::GetInventoryManager(CurrentPlayerState);
+		if (IsValid(Inventory))
+		{
+			CharacterInventoryPtr = Inventory;
+			TryAddDefaultInventoryItems(Inventory);
+		}
 	}
 	else
 	{
